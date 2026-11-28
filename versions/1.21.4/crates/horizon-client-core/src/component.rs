@@ -214,6 +214,20 @@ fn style_event_object<'a>(
         .and_then(Value::as_object)
 }
 
+/// A hover event's contents: 1.21.4's `contents` object, the legacy `value`
+/// object, or the event itself (1.21.5's flat form, without its `action`).
+fn hover_contents(e: &serde_json::Map<String, Value>) -> Option<serde_json::Map<String, Value>> {
+    if let Some(c) = e.get("contents").and_then(Value::as_object) {
+        return Some(c.clone());
+    }
+    if let Some(c) = e.get("value").and_then(Value::as_object) {
+        return Some(c.clone());
+    }
+    let mut flat = e.clone();
+    flat.remove("action");
+    Some(flat)
+}
+
 /// Style flags from JSON bools, or SNBT `1b`/`0b` which parse as numbers.
 fn style_flag(v: Option<&Value>) -> Option<bool> {
     match v {
@@ -290,7 +304,8 @@ fn object_style(o: &serde_json::Map<String, Value>) -> Style {
     if let Some(e) = style_event_object(o, "hover_event", "hoverEvent") {
         match e.get("action").and_then(Value::as_str) {
             Some("show_text") => {
-                // Modern `value`, or the older `contents` / nested `text`.
+                // `value` (1.21.5's record field, and 1.21.4's legacy form),
+                // `contents` (1.21.4's form), or a nested `text`.
                 let value = e
                     .get("value")
                     .or_else(|| e.get("contents"))
@@ -299,11 +314,37 @@ fn object_style(o: &serde_json::Map<String, Value>) -> Style {
                     style.hover = Some(Box::new(to_text(value, &mut |s| Text::literal(s))));
                 }
             }
-            Some("show_item") if e.get("id").is_some_and(Value::is_string) => {
-                style.hover_item = Some(Box::new(Value::Object(e.clone())));
+            Some("show_item") => {
+                // 1.21.4 wraps the item in `contents`; 1.21.5's flat form
+                // and the legacy `value` form are accepted too. The stored
+                // object is the contents, the 1.21.4 form.
+                if let Some(contents) = hover_contents(e)
+                    && contents.get("id").is_some_and(Value::is_string)
+                {
+                    style.hover_item = Some(Box::new(Value::Object(contents)));
+                }
             }
-            Some("show_entity") if e.get("id").is_some_and(Value::is_string) => {
-                style.hover_entity = Some(Box::new(Value::Object(e.clone())));
+            Some("show_entity") => {
+                // 1.21.4: `{"action": ..., "contents": {"type": ...,
+                // "id": <uuid>, "name": ...}}`. 1.21.5 renamed the fields
+                // to `id` (the type) and `uuid` and flattened them into
+                // the event; that form is normalised to 1.21.4's here.
+                if let Some(contents) = hover_contents(e) {
+                    let mut contents = contents;
+                    if contents.get("type").is_none() {
+                        if let Some(kind) = contents.remove("id") {
+                            contents.insert("type".into(), kind);
+                        }
+                        if let Some(uuid) = contents.remove("uuid") {
+                            contents.insert("id".into(), uuid);
+                        }
+                    }
+                    if contents.get("type").is_some_and(Value::is_string)
+                        && contents.get("id").is_some()
+                    {
+                        style.hover_entity = Some(Box::new(Value::Object(contents)));
+                    }
+                }
             }
             _ => {}
         }
@@ -758,5 +799,41 @@ mod tests {
         let comp = Tag::compound([("text", Tag::String("Custom Name".into()))]);
         let text = name_text(&comp);
         assert_eq!(text.plain(), "Custom Name");
+    }
+
+    /// HoverEvent in 1.21.4's form: the item and the entity wrapped in
+    /// `contents`, the entity's fields named `type` and `id`. 1.21.5's flat
+    /// form (`id` the type, `uuid` the UUID) is normalised to the same.
+    #[test]
+    fn hover_events_parse_in_1_21_4_contents_form() {
+        let parse = |v: Value| to_text(&v, &mut |_| Text::empty());
+        let item = parse(
+            serde_json::json!({"text": "Sword", "hoverEvent": {"action": "show_item",
+            "contents": {"id": "minecraft:diamond_sword", "count": 1}}}),
+        );
+        assert_eq!(
+            item.spans[0].style.hover_item.as_deref(),
+            Some(&serde_json::json!({"id": "minecraft:diamond_sword", "count": 1}))
+        );
+        let entity = parse(
+            serde_json::json!({"text": "Pig", "hoverEvent": {"action": "show_entity",
+            "contents": {"type": "minecraft:pig", "id": "00000000-0000-0000-0000-000000000001",
+            "name": {"text": "Porky"}}}}),
+        );
+        assert_eq!(
+            entity.spans[0].style.hover_entity.as_deref(),
+            Some(&serde_json::json!({"type": "minecraft:pig",
+                "id": "00000000-0000-0000-0000-000000000001", "name": {"text": "Porky"}}))
+        );
+        // The flat form a 1.21.5 server sends lands in the same shape.
+        let flat = parse(
+            serde_json::json!({"text": "Pig", "hoverEvent": {"action": "show_entity",
+            "id": "minecraft:pig", "uuid": "00000000-0000-0000-0000-000000000001"}}),
+        );
+        assert_eq!(
+            flat.spans[0].style.hover_entity.as_deref(),
+            Some(&serde_json::json!({"type": "minecraft:pig",
+                "id": "00000000-0000-0000-0000-000000000001"}))
+        );
     }
 }

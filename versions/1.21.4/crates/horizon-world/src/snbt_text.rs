@@ -68,16 +68,16 @@ pub fn quote_and_escape(input: &str) -> String {
     out.push(quote);
     out
 }
+/// `StringTagVisitor.SIMPLE_VALUE` (`[A-Za-z0-9._+-]+`): 1.21.4 leaves a key
+/// raw whenever every character is in that set -- digits may lead, and
+/// `true`/`false` are NOT special-cased. (1.21.5's `UNQUOTED_KEY_MATCH`
+/// requires a non-digit first character and quotes `true`/`false`; the
+/// 1.21.5 form lived here before this fix.)
 fn unquoted_key(key: &str) -> bool {
-    if key.eq_ignore_ascii_case("true") || key.eq_ignore_ascii_case("false") {
-        return false;
-    }
-    let mut chars = key.chars();
-    let first_ok = chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '.' || c == '_');
-    // `[A-Za-z._]+[A-Za-z0-9._+-]*`
-    first_ok && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '+' | '-'))
+    !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '+' | '-'))
 }
 pub fn string_of(t: &crate::nbt::JavaString) -> String {
     t.to_string_lossy()

@@ -158,8 +158,8 @@ impl Game<'_> {
             ),
             (
                 "hoverEvent".into(),
-                serde_json::json!({"action": "show_entity", "id": "minecraft:player",
-                    "uuid": horizon_protocol::crypto::uuid_string(uuid), "name": name}),
+                serde_json::json!({"action": "show_entity", "contents": {"type": "minecraft:player",
+                    "id": horizon_protocol::crypto::uuid_string(uuid), "name": name}}),
             ),
             ("insertion".into(), name.into()),
         ])

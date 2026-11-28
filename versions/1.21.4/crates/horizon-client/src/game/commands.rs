@@ -472,8 +472,8 @@ impl Game<'_> {
             ),
             (
                 "hoverEvent".into(),
-                serde_json::json!({"action": "show_entity", "id": "minecraft:player",
-                    "uuid": horizon_protocol::crypto::uuid_string(uuid), "name": name}),
+                serde_json::json!({"action": "show_entity", "contents": {"type": "minecraft:player",
+                    "id": horizon_protocol::crypto::uuid_string(uuid), "name": name}}),
             ),
             ("insertion".into(), name.into()),
         ])
@@ -1497,10 +1497,11 @@ impl Game<'_> {
             _ => text::WHITE,
         };
         // HoverEvent.ShowItem: the count only when it is not one.
-        let mut shown = serde_json::json!({"action": "show_item", "id": item});
+        let mut contents = serde_json::json!({"id": item});
         if s.count != 1 {
-            shown["count"] = s.count.into();
+            contents["count"] = s.count.into();
         }
+        let shown = serde_json::json!({"action": "show_item", "contents": contents});
         wrapped
             .with_color(color)
             .with_component_fields(vec![("hoverEvent".into(), shown)])

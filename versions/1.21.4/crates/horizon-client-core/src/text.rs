@@ -93,7 +93,7 @@ pub struct Style {
     pub hover: Option<Box<Text>>,
     /// `HoverEvent.ShowItem`: the event's `{id, count?, components?}` object.
     pub hover_item: Option<Box<Value>>,
-    /// `HoverEvent.ShowEntity`: the event's `{id, uuid, name?}` object.
+    /// `HoverEvent.ShowEntity`: the event's `{type, id, name?}` object.
     pub hover_entity: Option<Box<Value>>,
     /// `Style.insertion`: the text a Shift-click puts in the chat box.
     pub insertion: Option<String>,
@@ -611,13 +611,16 @@ fn style_json(style: &Style) -> Vec<(String, Value)> {
             json!({ "action": "show_text", "value": hover.component() }),
         ));
     } else if let Some(Value::Object(item)) = style.hover_item.as_deref() {
-        let mut event = item.clone();
-        event.insert("action".into(), "show_item".into());
-        out.push(("hoverEvent".to_owned(), Value::Object(event)));
+        // 1.21.4 wraps the item in `contents`; the flat form is 1.21.5's.
+        out.push((
+            "hoverEvent".to_owned(),
+            json!({ "action": "show_item", "contents": item }),
+        ));
     } else if let Some(Value::Object(entity)) = style.hover_entity.as_deref() {
-        let mut event = entity.clone();
-        event.insert("action".into(), "show_entity".into());
-        out.push(("hoverEvent".to_owned(), Value::Object(event)));
+        out.push((
+            "hoverEvent".to_owned(),
+            json!({ "action": "show_entity", "contents": entity }),
+        ));
     }
     if let Some(insertion) = &style.insertion {
         out.push(("insertion".to_owned(), insertion.clone().into()));
@@ -833,5 +836,38 @@ mod tests {
         assert_eq!(resolved.plain(), "Steve");
         assert_eq!(resolved.spans[0].style.color, Some(RED));
         assert_eq!(resolved.spans[0].style.bold, Some(false));
+    }
+
+    /// HoverEvent serialises in 1.21.4's form: the item and the entity
+    /// wrapped in `contents`, the entity's fields named `type` and `id`.
+    #[test]
+    fn hover_events_serialize_in_1_21_4_contents_form() {
+        let item = Style {
+            hover_item: Some(Box::new(
+                json!({"id": "minecraft:diamond_sword", "count": 1}),
+            )),
+            ..Style::default()
+        };
+        let text = Text::literal("Sword").with_style(&item);
+        assert_eq!(
+            text.component()["hoverEvent"],
+            json!({"action": "show_item",
+                "contents": {"id": "minecraft:diamond_sword", "count": 1}})
+        );
+        let entity = Style {
+            hover_entity: Some(Box::new(json!({"type": "minecraft:pig",
+                "id": "00000000-0000-0000-0000-000000000001"}))),
+            ..Style::default()
+        };
+        let text = Text::literal("Pig").with_style(&entity);
+        assert_eq!(
+            text.component()["hoverEvent"],
+            json!({"action": "show_entity",
+                "contents": {"type": "minecraft:pig",
+                "id": "00000000-0000-0000-0000-000000000001"}})
+        );
+        // The JSON a 1.21.4 server sends parses back to the same style.
+        let again = crate::component::to_text(&text.component(), &mut |_| Text::empty());
+        assert_eq!(again.spans[0].style.hover_entity, entity.hover_entity);
     }
 }

@@ -6973,3 +6973,35 @@ shape for the review batches.
   and saves them under the 1.21.4 key names as Byte, but never
   deserializes them from NBT, so the load-form diff has no Rust code.
   G3 structure worldgen complete (13/13).
+  Batch 101 (2026-11-28, rank 3 G4: report ids 379, 380, 419, 424, 425,
+  426, 429, 431). Rank 3 now 94/149 (13 accepted + 81 closed); total
+  441/548. Two real fixes, six carry-overs. 379 (snbt.rs): the SNBT
+  visitors carried the 1.21.5 rules -- the plain form's unquoted_key
+  excluded true/false and barred leading digits (1.21.4's SIMPLE_VALUE
+  is [A-Za-z0-9._+-]+), and Pretty::list inlined on len >= 8 or all
+  numeric (1.21.4 inlines iff the element type is numeric, ids 1-6,
+  AND size <= 8). Both fixed to the 1.21.4 rules, with tests.
+  380+429 (text.rs, chat.rs): 1.21.5 refactored HoverEvent and changed
+  its JSON form; the Rust inherited it. 1.21.4's modern codec is
+  {action, contents} and EntityTooltipInfo's fields are type/id/name,
+  so the Rust silently dropped every show_item/show_entity hover from
+  a 1.21.4 server and misread the entity tooltip. Fixed to the native
+  1.21.4 form across parse (component.rs), serialise (text.rs), the
+  tooltip lines (chat.rs), the NBT UUID conversion (scoreboard.rs)
+  and all four emission sites (commands.rs x2, players.rs,
+  lan_trading.rs), with tests. ClickEvent needed nothing: the enum
+  already models 1.21.4's six actions and the serialiser already
+  writes action+value. 419 (launch_options.rs): DisplayData is
+  fields-only in 1.21.4; 1.21.5 made it a Record -- no behaviour
+  change, Rust does not implement it. 424 (block_editor.rs): the
+  Rust's structure editor has the 1.21.4 fields (no 1.21.5 strict
+  mode); the Test* edit screens are 1.21.5-only and the Rust's
+  test-block editors are unreachable in 1.21.4 -- removal belongs
+  with item 359 (gametest). 425 (shapes.rs): the StairBlock change is
+  a pure shape-table restructure (array -> per-direction Maps, same
+  boxes); BaseCoralPlantTypeBlock is a rename with the same box.
+  426 (debug overlay): the 1.21.5 additions are render plumbing and
+  the 3D crosshair; the F3 text is unchanged and the Rust matches
+  1.21.4. 431 (debug_lines.rs): the dispatcher refactor touches
+  internals the Rust does not implement; noted the Rust's C: line
+  omits pU in both versions (template gap, not a port item).

@@ -1684,7 +1684,8 @@ impl Game<'_> {
         self.ui.chat.draw(batch, &self.gui.atlas, now, focused);
     }
     /// `HoverEvent.EntityTooltipInfo.getTooltipLines`: the name when the
-    /// event has one, the entity type and the UUID.
+    /// event has one, the entity type and the UUID. 1.21.4's contents name
+    /// them `type` and `id`; 1.21.5 renamed them `id` and `uuid`.
     fn entity_tooltip_lines(entity: &serde_json::Value) -> Vec<(Text, u32)> {
         let mut lines = Vec::new();
         if let Some(name) = entity.get("name") {
@@ -1692,7 +1693,7 @@ impl Game<'_> {
             lines.push((name, u32::MAX));
         }
         let id = entity
-            .get("id")
+            .get("type")
             .and_then(serde_json::Value::as_str)
             .unwrap_or_default();
         let kind = Text::translate(&format!("entity.{}", id.replace(':', ".")), &[]);
@@ -1700,7 +1701,7 @@ impl Game<'_> {
             Text::translate("gui.entity_tooltip.type", &[kind]),
             u32::MAX,
         ));
-        if let Some(uuid) = entity.get("uuid").and_then(Self::entity_uuid) {
+        if let Some(uuid) = entity.get("id").and_then(Self::entity_uuid) {
             lines.push((Text::literal(uuid), u32::MAX));
         }
         lines
@@ -2686,5 +2687,26 @@ mod damage_type_registry_tests {
                 .contains(&"minecraft:is_fire".to_owned()),
             "vanilla's damage type tags stay"
         );
+    }
+
+    /// `HoverEvent.EntityTooltipInfo.getTooltipLines` reads 1.21.4's
+    /// `type` and `id` fields: the name first, the type line naming the
+    /// pig, the UUID line showing the UUID.
+    #[test]
+    fn entity_tooltip_lines_read_1_21_4_fields() {
+        let entity = serde_json::json!({"type": "minecraft:pig",
+            "id": "00000000-0000-0000-0000-000000000001", "name": {"text": "Porky"}});
+        let lines = Game::entity_tooltip_lines(&entity);
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].0.plain(), "Porky");
+        assert_eq!(
+            lines[1].0.translation_key(),
+            Some("gui.entity_tooltip.type")
+        );
+        assert_eq!(
+            lines[1].0.component()["with"][0]["translate"],
+            serde_json::json!("entity.minecraft.pig")
+        );
+        assert_eq!(lines[2].0.plain(), "00000000-0000-0000-0000-000000000001");
     }
 }

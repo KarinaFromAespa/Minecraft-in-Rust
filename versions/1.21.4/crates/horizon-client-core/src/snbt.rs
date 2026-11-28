@@ -112,7 +112,12 @@ impl Pretty {
             self.lit("[", None);
             self.lit("<...>", Some(text::GRAY));
             self.lit("]", None);
-        } else if l.len() >= 8 || l.iter().all(is_numeric) {
+        } else if l.iter().all(is_numeric) && l.len() <= 8 {
+            // `TextComponentTagVisitor.visitList`: inline iff the element
+            // type is in INLINE_ELEMENT_TYPES (the numeric tags, ids 1-6)
+            // and the size is at most 8. (1.21.5's `shouldWrapListElements`
+            // inlines when the size is at least 8 or every element is
+            // numeric; the 1.21.5 form lived here before this fix.)
             self.lit("[", None);
             for (i, t) in l.iter().enumerate() {
                 if i != 0 {
@@ -442,7 +447,13 @@ mod tests {
             "{a:\"x\",b:1b,c:[1,2],d:1.5f,e:2.0d,f:3L,g:4s}"
         );
         assert_eq!(rt("{\"a b\":1}"), "{\"a b\":1}");
-        assert_eq!(rt("{true:1}"), "{\"true\":1}");
+        // 1.21.4's StringTagVisitor.SIMPLE_VALUE (`[A-Za-z0-9._+-]+`): a
+        // key is left raw whenever every character is in that set --
+        // `true`/`false` are not special-cased and digits may lead.
+        assert_eq!(rt("{true:1}"), "{true:1}");
+        assert_eq!(rt("{false:1}"), "{false:1}");
+        assert_eq!(rt("{123abc:1}"), "{123abc:1}");
+        assert_eq!(rt("{1:1}"), "{1:1}");
         assert_eq!(rt("[B;1b,2b]"), "[B;1B,2B]");
         assert_eq!(rt("[I;1,2]"), "[I;1,2]");
         assert_eq!(rt("[L;1L]"), "[L;1L]");
@@ -479,6 +490,27 @@ mod tests {
         assert!(colors.contains(&text::GOLD));
         let long = parse_snbt("{l:[{a:1},{b:2}]}").unwrap().0;
         assert_eq!(pretty(&long).plain(), "{l: [{a: 1}, {b: 2}]}");
+    }
+    #[test]
+    fn indented_lists_wrap_by_1_21_4_rule() {
+        // `TextComponentTagVisitor.visitList`: inline iff the element type
+        // is numeric (ids 1-6) and the size is at most 8; anything else
+        // wraps one element per line.
+        let eight = parse_snbt("[1,2,3,4,5,6,7,8]").unwrap().0;
+        assert_eq!(
+            pretty_indented(&eight, "  ").plain(),
+            "[1, 2, 3, 4, 5, 6, 7, 8]"
+        );
+        let nine = parse_snbt("[1,2,3,4,5,6,7,8,9]").unwrap().0;
+        assert_eq!(
+            pretty_indented(&nine, "  ").plain(),
+            "[\n  1,\n  2,\n  3,\n  4,\n  5,\n  6,\n  7,\n  8,\n  9\n]"
+        );
+        let compounds = parse_snbt("[{a:1},{b:2}]").unwrap().0;
+        assert_eq!(
+            pretty_indented(&compounds, "  ").plain(),
+            "[\n  {\n    a: 1\n  },\n  {\n    b: 2\n  }\n]"
+        );
     }
     #[test]
     fn block_entity_metadata_follows_its_fields() {

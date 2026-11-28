@@ -1286,6 +1286,27 @@ fn entity_uuids(tag: &mut Tag) {
                     if let Some(ints) = ints.filter(|i| i.len() == 4) {
                         *v = Tag::IntArray(ints);
                     }
+                } else if show_entity && k.to_string_lossy() == "contents" {
+                    // 1.21.4 nests the entity in `contents`, its UUID under
+                    // `id` (a string in JSON, an int array in NBT).
+                    let ints = match v {
+                        Tag::Compound(contents) => match contents.get(&"id".into()) {
+                            Some(Tag::String(s)) => {
+                                crate::uuid::uuid_from_text(&s.to_string_lossy())
+                                    .map(Vec::from)
+                                    .filter(|i| i.len() == 4)
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(ints) = ints
+                        && let Tag::Compound(contents) = v
+                        && let Some(id) = contents.get_mut(&"id".into())
+                    {
+                        *id = Tag::IntArray(ints);
+                    }
+                    entity_uuids(v);
                 } else {
                     entity_uuids(v);
                 }

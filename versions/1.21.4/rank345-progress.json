@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 100,
-  "note": "Batch 100 (2026-11-28, rank 3 G3: report id 477): CARRY-OVER -- the same 1.21.5 NBT accessor modernization as batches 97-99 (getBoolean -> getBooleanOr(name, false)) with identical values; the Rust generates temple pieces and never deserializes these flags from NBT. No code changes. G3 complete (13/13).",
+  "batch": 101,
+  "note": "Batch 101 (2026-11-28, rank 3 G4: report ids 379, 380, 419, 424, 425, 426, 429, 431): two real fixes (379 SNBT visitor rules, 380+429 HoverEvent 1.21.4 contents form) and six carry-overs; G4 long-tail sweep 8/52 done. Rank 3 now 94/149 (13 accepted + 81 closed); total 441/548.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -388,6 +388,46 @@
       "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 100, jar-verified 2026-11-28): DesertPyramidPiece + JungleTemplePiece -- both NBT constructors read their placed flags via getBoolean in 1.21.4, via getBooleanOr(name, false) in 1.21.5 (old getBoolean returns false for a missing key; identical): DesertPyramidPiece hasPlacedChest0..3 into the hasPlacedChest[4] array; JungleTemplePiece placedMainChest, placedHiddenChest, placedTrap1, placedTrap2. The Rust generates temple pieces (placed flags start [false; 4], temple.rs:25,445-448) and saves them under the 1.21.4 key names as Byte (:87-89, :465-473), but never deserializes them from NBT -- the load-form diff has no Rust code. No code change."
+    },
+    "379": {
+      "module": "crates/horizon-client-core/src/snbt.rs",
+      "verdict": "closed",
+      "evidence": "FIXED (batch 101, jar-verified 2026-11-28): two real defects in the SNBT visitors, both 1.21.5 forms inherited from the parent. (1) Plain form: horizon-world/src/snbt_text.rs unquoted_key used the 1.21.5 rule (true/false excluded, first char must be non-digit); 1.21.4 StringTagVisitor.SIMPLE_VALUE is [A-Za-z0-9._+-]+ (jar-verified: no true/false exclusion, digits may lead). Fixed to the 1.21.4 rule. 1.21.4 visitString always quotes values; visitCompound sorts keys (Rust Compound is a BTreeMap over UTF-16-ordered JavaString, matching Collections.sort) and applies handleEscape (SIMPLE_VALUE) to keys only. quote_and_escape was already the 1.21.4 single-arg form. (2) Pretty form: horizon-client-core/src/snbt.rs Pretty::list inlined iff len >= 8 or all numeric (the 1.21.5 shouldWrapListElements rule); 1.21.4 TextComponentTagVisitor.visitList inlines iff the element type is numeric (tag ids 1-6, jar-verified static init) AND size <= 8. Fixed to all-numeric && len <= 8. Pretty compound keys, colours (KEY=AQUA, STRING=GREEN, NUMBER=GOLD, NUMBER_TYPE=RED), depth>=64 fold and the 128-element cap already matched 1.21.4. Tests: compact_form_matches_vanilla now expects {true:1}/{false:1}/{123abc:1}/{1:1} unquoted; new indented_lists_wrap_by_1_21_4_rule (8 numerics inline, 9 wrapped, 2 compounds wrapped). Local: horizon-world snbt_text 1 passed, horizon-client-core snbt 9 passed."
+    },
+    "380": {
+      "module": "crates/horizon-client-core/src/text.rs",
+      "verdict": "closed",
+      "evidence": "FIXED (batch 101, jar-verified 2026-11-28) with 429: 1.21.5 refactored HoverEvent (class + generic Action -> sealed interface + records) and changed the JSON form; the Rust inherited the 1.21.5 form. 1.21.4's modern codec is {action, contents} (Action.codec uses 'contents', legacyCodec 'value', jar-verified) and EntityTooltipInfo's codec fields are type/id/name (1.21.5 renamed them id/uuid). The Rust's parse required a top-level 'id', so a 1.21.4 server's show_item/show_entity events (contents-wrapped) were silently dropped, and its tooltip read the 1.21.5 field names. Fixed to the native 1.21.4 form: component.rs accepts contents-wrapped, legacy value, and the flat form, normalising the stored object to the 1.21.4 contents ({id,count?,components?} / {type,id,name?}); text.rs serialises {action, contents}; scoreboard.rs entity_uuids converts contents.id (string) to the NBT int array (flat uuid still handled); the three constructor sites (commands.rs player-name hover + item-rarity hover, players.rs player-name hover) and lan_trading.rs merchant display name now emit the contents form. ClickEvent needs nothing: the Rust's enum already models 1.21.4's six actions, its serialiser already writes action+value (1.21.4's codec), and ClickEvent$ChangePage/OpenUrl/RunCommand are 1.21.5-only records (absent from the 1.21.4 client jar). LocateCommand's one changed method is the same clickable coordinates (suggest /tp + chat.coordinates.tooltip hover) under the new constructors. Tests: new hover_events_parse_in_1_21_4_contents_form, hover_events_serialize_in_1_21_4_contents_form. Local: horizon-client-core 85 passed."
+    },
+    "419": {
+      "module": "crates/horizon-client/src/game/launch_options.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 101, jar-verified 2026-11-28): DisplayData -- 1.21.4 is a plain class with five public final fields (width, height, fullscreenWidth, fullscreenHeight, isFullscreen) and one constructor, no methods; 1.21.5 made it a Record with withSize/withFullscreen (the report's 11 'methods' are the record's generated accessors). No behavioural change. The Rust does not implement DisplayData (launch_options.rs only cites it in the --fullscreen comment: the window opens fullscreen whatever options.txt says, without saving it there). No code change."
+    },
+    "424": {
+      "module": "crates/horizon-client/src/game/block_editor.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 101, jar-verified 2026-11-28): StructureBlockEditScreen -- 1.21.5 added a 'strict' mode (initialStrict, strictButton, STRICT_LABEL); the Rust's structure_edit.rs implements the 1.21.4 screen (mirror, rotation, mode Save/Load/Corner + DATA via DEFAULT_MODES, ignore_entities, show_air, show_bounding_box; no strict) and matches 1.21.4. TestBlockEditScreen, TestInstanceBlockEditScreen and its $1 are 1.21.5-only (absent from the 1.21.4 client jar; 1.21.4 has the gametest framework but no test-block classes at all). The Rust's test_block_edit.rs editors are unreachable in 1.21.4 (no minecraft:test_block/test_instance_block in the prepared registry) -- removal belongs with item 359 (gametest), not this batch. No code change."
+    },
+    "425": {
+      "module": "crates/horizon-world/src/level/shapes.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 101, jar-verified 2026-11-28): StairBlock -- 1.21.4 builds shapes via makeShapes/makeStairShape/getShapeIndex with a SHAPE_BY_STATE array and OCTET_* constants; 1.21.5 replaced the lookup with per-direction Maps (SHAPE_BOTTOM_INNER etc.) holding the same boxes -- a pure restructure of the shape-table construction. The Rust's stair shapes are per-version prepared data and its stairs_shape implements getStairsShape (which did not change). BaseCoralPlantTypeBlock: only the AABB->SHAPE field rename and a factory change, same box (2,0,2,14,4,14; 1.21.5 Block.column(12,0,4)). StairBlock$1 is the synthetic switch-map companion. No code change."
+    },
+    "426": {
+      "module": "crates/horizon-client/src/debug_overlay.rs + crates/horizon-client/src/title.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 101, jar-verified 2026-11-28): DebugScreenOverlay -- the 1.21.5 additions are render plumbing (GpuBuffer crosshairBuffer, crosshairIndicies, CROSSHAIR_LENGTH/COUNT, render3dCrosshair); the F3 text lines did not change at the method level. The Rust's debug_overlay.rs implements the overlay's text (extractLines, background 0x90505050, 9px lines) and has no 3D crosshair, matching 1.21.4. FittingMultiLineTextWidget -- 1.21.5 dropped the renderWidget override and added setMessage; same superclass, fields and constructor. The Rust's title.rs lays out the multiplayer-warning message itself (box width-100, 4px inside, left-aligned, wrapped), matching 1.21.4's widget behaviour. No code change."
+    },
+    "429": {
+      "module": "crates/horizon-client/src/game/chat.rs",
+      "verdict": "closed",
+      "evidence": "FIXED (batch 101, jar-verified 2026-11-28) with 380: HoverEvent$EntityTooltipInfo -- 1.21.4's codec fields are type/id/name (id is the UUID); 1.21.5 renamed them id (the type) and uuid. chat.rs entity_tooltip_lines read 'id' as the entity type and 'uuid' as the UUID (the 1.21.5 form), so a 1.21.4 show_entity hover rendered a broken type line and no UUID. Fixed to read 'type' and 'id'; the stored form is normalised to 1.21.4's contents by the component.rs parse (see 380). New test entity_tooltip_lines_read_1_21_4_fields (name + type line naming the pig + UUID line). horizon-client compiles; the test runs in CI (lib test compile OOMs on the VM)."
+    },
+    "431": {
+      "module": "crates/horizon-client/src/game/debug_lines.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 101, jar-verified 2026-11-28): SectionRenderDispatcher -- the 1.21.5 refactor (SectionBuffers is a new 1.21.5-only class, absent from the 1.21.4 client jar; RebuildTask shows no signature change) touches the section compiler's internals. The Rust does not implement the dispatcher or rebuild tasks: debug_lines.rs computes its own drawn-section and pending counts for the F3 'C:' line. Note (pre-existing, version-independent, NOT a port item): the Rust's C: line omits pU (pending uploads) although both versions' getStats format is 'pC: %03d, pU: %02d, aB: %02d' -- a template gap, not a 1.21.4-vs-1.21.5 difference. No code change."
     }
   }
 }

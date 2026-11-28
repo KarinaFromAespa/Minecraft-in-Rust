@@ -154,9 +154,14 @@ impl Game<'_> {
             "hoverEvent".into(),
             Tag::compound([
                 ("action", Tag::String("show_entity".into())),
-                ("id", Tag::String(kind.into())),
-                ("uuid", Tag::IntArray(uuid.to_vec())),
-                ("name", name),
+                (
+                    "contents",
+                    Tag::compound([
+                        ("type", Tag::String(kind.into())),
+                        ("id", Tag::IntArray(uuid.to_vec())),
+                        ("name", name),
+                    ]),
+                ),
             ]),
         );
         out.insert("insertion".into(), Tag::String(text.as_str().into()));
