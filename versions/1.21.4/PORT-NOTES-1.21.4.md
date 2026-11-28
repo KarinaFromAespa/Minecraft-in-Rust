@@ -7364,3 +7364,38 @@ biomes tests pass locally. Rank 3 after batch 112: 145/149 done
 (closed 121 + ported 9 + carry-over 2 + accepted 13, counted once);
 total 505/548. G5 (batches 108-112) is complete; remaining rank 3 is
 G6 (113-114: items 359, 360) and the 2 deferred Realms items (362, 497).
+
+Batch 113 (2026-11-29, rank 3 G6: report id 359) -- NOT CLOSED. Item 359
+(gametest) is a subsystem port, not a one-batch module port, and was
+recorded OPEN with a port plan instead of half-ported. Jar-verified:
+1.21.4's /test is structure-block + TestFunction based; the Rust's is
+entirely the 1.21.5 test-instance-block form. The 1.21.4 command tree
+(register) has run <testName>, runmultiple, runall, runthese, runclosest,
+runthat, runfailed [onlyRequiredTests], verify <testName>, verifyclass
+<testClassName>, locate <testName>, resetclosest/these/that, export
+<testName>/exportclosest/these/that (unconditional), clearthat/these,
+clearall [radius], import <testName>, stop, pos [var], create <testName>
+<width> <height> <depth>; the Rust's tree takes a test_instance
+ResourceSelector and lacks runall, verifyclass, export* and import.
+TestFunction is a record (batchName, testName, structureName, rotation,
+maxTicks, setupTicks, required, manualOnly, maxAttempts,
+requiredSuccesses, skyAccess, function), looked up by the structure
+block's metadata or by name/class; the shipped registry is EMPTY (the
+test classes are not in the jar). The Rust's TestDef comes from the
+1.21.5-only test_instance registry; its only function is always_pass.
+1.21.4 has NO commands.test.* lang keys (0 in the client jar) --
+TestCommand builds hardcoded English strings; the Rust uses the 26
+1.21.5 keys. Constants: nearby radius 15, full-search radius 200 (the
+Rust's AllNearby uses 250 -- wrong even for 1.21.5), verify grid 10, verify
+batch 100. Blast radius: the test-instance-block concept touches 29
+files; the core is game_tests.rs (1963 lines), test_instances.rs (504),
+test_runs.rs (489), test_locate.rs (330) plus test_blocks.rs,
+test_environments.rs, test_instance_edit.rs and the render/block-entity
+references. Port plan (ledger entry for 359): TestFunction registry;
+structure-block finders + create/pos/locate/clear/reset/export/import
+over StructureBlockEntity; Info over a structure block (origin/rotation/
+box/status rewritten from TestInstanceBlock to StructureBlockEntity);
+the 1.21.4 tree + hardcoded messages; rewrite the tests pinning the
+1.21.5 model. Estimated 1200-1800 lines across 6-8 files. Do NOT
+half-port: a structure-block command layer on the test-instance-block
+runner would break /test entirely, including its fixture tests.
