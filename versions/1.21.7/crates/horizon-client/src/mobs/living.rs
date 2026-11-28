@@ -2132,10 +2132,20 @@ impl RestitutionWorld for MobRestitution<'_, '_> {
     fn block_suppresses_bounce(&mut self, state: BlockStateId) -> Result<bool, ()> {
         Ok(self.movement(state)?.suppresses_bounce)
     }
-    /// `Entity.getBlockBounciness`: the restitution of the block under the
-    /// entity, so a mob landing on a slime block or a bed bounces too.
+    /// `SlimeBlock`/`BedBlock.updateEntityMovementAfterFallOn` → `bounceUp`:
+    /// 1.21.7 has no `BlockBehaviour.bounceRestitution` — the movement data
+    /// reads 0 for every block — so the bounce factor comes from the block
+    /// itself. A living entity bounces by 1.0 on slime and by 0.66 on a bed
+    /// (the 0.8 in `bounceUp` is the non-living factor); anything else is 0.
     fn block_bounce_restitution(&mut self, state: BlockStateId) -> Result<f32, ()> {
-        Ok(self.movement(state)?.coefficients.bounce_restitution)
+        let name = &*self.world.facts.get(state).name;
+        Ok(if name == "minecraft:slime_block" {
+            1.0
+        } else if name.ends_with("_bed") {
+            0.66
+        } else {
+            0.0
+        })
     }
     /// `LivingEntity.getAirDrag`.
     fn air_drag(&mut self) -> Result<f32, ()> {
