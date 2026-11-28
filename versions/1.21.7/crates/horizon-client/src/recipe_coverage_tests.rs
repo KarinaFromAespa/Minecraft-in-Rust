@@ -96,6 +96,31 @@ fn assert_same_id(want: &str, found: &str) {
     );
 }
 
+/// `assert_same_id`, plus the first-match collision vanilla itself has: the
+/// `_simple` twin of a special recipe matches the same grid, and vanilla's
+/// `RecipeMap` is fed from a `SortedMap` with `getRecipeFor` returning the
+/// first match, so the special sorts first (`decorated_pot` <
+/// `decorated_pot_simple`, `firework_rocket` < `firework_rocket_simple`)
+/// and the port returning it is vanilla-correct — the two twins assemble the
+/// same result, so the test still proves the wanted recipe crafts to the
+/// right result. The wanted recipe must itself be loaded, so the test still
+/// proves it exists.
+fn assert_same_or_twin(id: &str, found_id: &str, recipes: &Recipes) {
+    let twin = match id {
+        "minecraft:decorated_pot_simple" => "decorated_pot",
+        "minecraft:firework_rocket_simple" => "firework_rocket",
+        _ => "",
+    };
+    if found_id == twin {
+        assert!(
+            recipes.recipe(id).is_some(),
+            "{id}: matched its twin but the recipe itself is not loaded"
+        );
+        return;
+    }
+    assert_same_id(id, found_id);
+}
+
 fn check_recipe(id: &str) {
     let Some(fx) = fixture() else {
         return;
@@ -158,7 +183,7 @@ fn check_shaped(fx: &Fixture, id: &str, v: &Value) {
         .recipes
         .find(&grid, 3)
         .unwrap_or_else(|| panic!("{id}: did not craft from its pattern"));
-    assert_same_id(id, found_id);
+    assert_same_or_twin(id, found_id, &fx.recipes);
     let (want_item, want_count) = result_id_count(v).unwrap_or_else(|| panic!("{id}: no result"));
     assert_eq!(result.item.as_ref(), want_item, "{id}: result item");
     assert_eq!(result.count, want_count, "{id}: result count");
@@ -180,7 +205,7 @@ fn check_shapeless(fx: &Fixture, id: &str, v: &Value) {
         .recipes
         .find(&grid, 3)
         .unwrap_or_else(|| panic!("{id}: did not craft from its ingredients"));
-    assert_same_id(id, found_id);
+    assert_same_or_twin(id, found_id, &fx.recipes);
     let (want_item, want_count) = result_id_count(v).unwrap_or_else(|| panic!("{id}: no result"));
     assert_eq!(result.item.as_ref(), want_item, "{id}: result item");
     assert_eq!(result.count, want_count, "{id}: result count");
