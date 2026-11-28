@@ -399,10 +399,12 @@ const COMMON_TROPICAL_FISH: [(&str, &str, &str); 22] = [
     ("flopper", "yellow", "yellow"),
 ];
 
-/// `TropicalFish.Pattern.addToTooltip`: a bucket of tropical fish names a
+/// `MobBucketItem.appendHoverText`: a bucket of tropical fish names a
 /// common variant, or else shows the pattern and then the base colour (with
 /// the pattern colour when it differs), all in italic gray. Only a stack that
-/// has the pattern component shows it.
+/// has the pattern component shows it. (1.21.5 moved this into
+/// `TropicalFish.Pattern.addToTooltip` when the pattern became a
+/// `TooltipProvider`; the lines are the same.)
 pub fn tropical_fish_lines(stack: &ItemStack, display: &TooltipDisplay) -> Vec<Text> {
     if !display.shows("minecraft:tropical_fish/pattern") {
         return Vec::new();

@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 102,
-  "note": "Batch 102 (2026-11-28, rank 3 G4: report ids 432, 433, 436, 441, 442, 445, 446, 447): one real fix (432 equine saddle \u2014 1.21.5-only separate saddle layer removed, body-model saddle parts gated on saddled/ridden) and seven carry-overs; G4 long-tail verification sweep continues.",
+  "batch": 103,
+  "note": "Batch 103 (2026-11-28, rank 3 G4: report ids 450, 451, 456, 458, 460, 461, 462, 463): eight carry-overs, no code changes except a doc-citation fix in 458 (tropical fish tooltip cited the 1.21.5 location); G4 long-tail verification sweep continues.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -468,6 +468,46 @@
       "module": "crates/horizon-client/src/legacy_combat.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 102, jar-verified 2026-11-28): ToolMaterial 3m \u2014 applyToolProperties(props, tag, float, float) in 1.21.4 -> 5 floats in 1.21.5. The extra float is item_damage_per_attack for the new minecraft:weapon component (Weapon.<init>(int, float); Weapon class present in the 1.21.5 jar, ABSENT from the 1.21.4 jar), and the 1.21.5 Tool ctor gains a boolean. The Rust already models the 1.21.4 form: items.rs reads minecraft:weapon only when the component object is present in the loaded (version) data and falls back to weapon_damage_1214 (swords/mace/trident lose 1 per hit via their own postHurtEnemy overrides; axes have no such override and take none), and the Tool component rules (deniesDrops + minesAndDrops with the material's speed field) are the same in both versions. legacy_combat.rs keeps the old getDamageVsEntity table (WOOD 0, STONE 1, IRON 2, EMERALD 3, GOLD 0) and does not call applyToolProperties. The disable_blocking_seconds field defaults to 0.0 when the component is absent; 1.21.4 axes disable shields via Player.disableShield, not a Weapon component, and no Rust path consumes the field outside items.rs."
+    },
+    "450": {
+      "module": "crates/horizon-items/src/flowers.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): FlowerBlock 3m \u2014 (1) superclass BushBlock -> VegetationBlock, a pure rename: both have the identical 6 methods (codec, mayPlaceOn, updateShape, canSurvive, propagatesSkylightDown, isPathfindable). (2) getShape: SHAPE.move(x, y, z) -> SHAPE.move(Vec3), same call. (3) static init: SHAPE = Block.box(5, 0, 5, 11, 10, 11) in 1.21.4 -> Block.column(6, 10, 0) in 1.21.5, which is the same box ((16-6)/2 = 5 .. (16+6)/2 = 11, y 0..10). The suspicious-stew effects table is unchanged; the Rust's flowers.rs is that table and the shape comes from prepared block data."
+    },
+    "451": {
+      "module": "crates/horizon-world/src/datafix/world_upgrader.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): WorldUpgrader 2m + ChunkUpgrader 1m. The ctor gains a WorldData param in 1.21.5, used only to build a SavedData$Context (null, worldGenOptions.seed()) for the DimensionDataStorage ctor \u2014 constructor plumbing, no change to the upgrade work. ChunkUpgrader's one change is CompoundTag.getInt('xPos'/'zPos') -> getIntOr(..., 0), the same default the Rust's verify_chunk_pos already uses (world_upgrader.rs:71-79, as_int(..., 0) plus the same 'has invalid position' warning). The Rust's upgrader follows 26.1's extracted RegionStorageUpgrader shape by design (see its module doc); the work is the same."
+    },
+    "456": {
+      "module": "widely named: server/commands/data",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): DataCommands 3m, all Java modernizations with identical behaviour. getAsText: Tag.getType().isValue() + getAsString() -> pattern-matching switch (StringTag.value(), other PrimitiveTag.toString(), MatchException on anything else); getData: instanceof NumericTag -> pattern-matching switch; getNumeric: NumericTag.getAsDouble() -> doubleValue() (same value). The Rust's data_cmd.rs::as_text matches both versions exactly (String -> raw value, other primitives -> SNBT form with suffix, else commands.data.modify.expected_value; tests pin 'x' -> 'x', '5b' -> '5b', '[1]' -> err). The fourth apparent change (decorateModification ldc -> ldc_w) is a constant-pool instruction-width artifact."
+    },
+    "458": {
+      "module": "crates/horizon-client-core/src/pattern.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): TropicalFish$Pattern 2m. In 1.21.5 the enum gains TooltipProvider + STREAM_CODEC + addToTooltip; in 1.21.4 the same tooltip lines come from MobBucketItem.appendHoverText (verified in the 1.21.4 jar: reads the Variant component's baseColor/patternColor, COMMON_VARIANTS, getPredefinedName, Pattern.displayName; 1.21.5's MobBucketItem has no appendHoverText). The Rust's item_tooltip.rs::tropical_fish_lines produces exactly the 1.21.4 lines (common variant -> entity.minecraft.tropical_fish.predefined.<index>, else pattern display name + base colour + pattern colour when different, all italic gray). Fixed the doc citation, which named the 1.21.5 location (Pattern.addToTooltip), to MobBucketItem.appendHoverText. NOTE: the report's module mapping to pattern.rs is heuristic \u2014 that file is a regex subset for pack.mcmeta filters, not the fish pattern; the fish tooltip lives in item_tooltip.rs."
+    },
+    "460": {
+      "module": "crates/horizon-client/src/game/banners.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): MapBanner 2m. 1.21.5 removes the LIST_CODEC static field (callers now build it at the use site via CODEC.listOf()) and renames ComponentSerialization.FLAT_CODEC -> CODEC inside the CODEC construction (same codec). The record itself (pos, DyeColor color, Optional<Component> name) and its methods (fromWorld, getDecoration, getId) are unchanged. The Rust's maps.rs::MapBanner has the same three fields with to_nbt/from_nbt (pos int array, color string, optional name) and does not use LIST_CODEC."
+    },
+    "461": {
+      "module": "crates/horizon-client/src/game/code_of_conduct.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): ClientConfigurationPacketListenerImpl 1m + $1 removed=True. The one changed method is handleConfigurationFinished (isAcceptingMessages differs only by dump whitespace): the protocol-template refactor \u2014 GameProtocols.CLIENTBOUND_TEMPLATE bind moves from ProtocolInfo$Unbound to SimpleUnboundProtocol, SERVERBOUND_TEMPLATE to UnboundProtocol.bind(Function, Object) with a new 1.21.5-only anonymous class $1 as the state object (verified absent from the 1.21.4 client jar: only ClientConfigurationPacketListenerImpl.class exists). The observable behaviour (binding the game protocols when configuration finishes) is unchanged, and the Rust implements handleCodeOfConduct + the CodeOfConductScreen, not the Java protocol binding."
+    },
+    "462": {
+      "module": "crates/horizon-client/src/game/fireworks.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): FireworkEntityRenderer 1m + FireworkRocketItem 1m. Renderer: PoseStack.mulPose(Quaternionf) -> mulPose(Quaternionfc) (read-only interface) at 4 call sites, no behaviour change. FireworkRocketItem: appendHoverText REMOVED in 1.21.5 \u2014 the tooltip moved to the Fireworks component's TooltipProvider (Fireworks.addToTooltip); the content is unchanged, and the Rust's item_tooltip.rs::firework_lines reads the Fireworks component directly (flight + explosion shapes/colours/fade/trail/twinkle). useOn, createDispenseConfig and getEntityJustOutsideOfBlockPos differ only by dump noise (ldc_w vs ldc 0.5f, whitespace)."
+    },
+    "463": {
+      "module": "crates/horizon-client/src/game/leads.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): FenceBlock 2m \u2014 the CrossCollisionBlock shape plumbing was restructured (eager VoxelShape[] by index -> lazy Function per state, makeShapes via Block.column/BoxZ + Shapes.rotateHorizontal), and the parameter meanings changed from half-widths to full widths with the FenceBlock call sites updated. The resulting geometry is identical in union: outline post box(6, 0, 6, 10, 16, 10) (1.21.4 makeShapes(2,2,16,0,16) post box(8-2,0,8-2,8+2,16,8+2); 1.21.5 makeShapes(4,16,4,0,16) post column(4,16,0)), arms x/z 6..10, y 0..16 to the block edges (1.21.5's arm boxes stop at the centre 8 instead of extending to 8+p2 = 10, but the union with the post covers the same volume), collision post 24 tall in both. The Rust holds no hardcoded fence shape (shapes come from prepared block data); leads.rs itself is the leash/knot logic, untouched by this diff."
     }
   }
 }

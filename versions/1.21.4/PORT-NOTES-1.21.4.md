@@ -7037,3 +7037,33 @@ shape for the review batches.
   1.21.5's extra ToolMaterial float is item_damage_per_attack for the
   new minecraft:weapon component, absent from the 1.21.4 jar; the Rust
   reads it only when present and falls back to weapon_damage_1214.
+
+  Batch 103 (2026-11-28, rank 3 G4: report ids 450, 451, 456, 458, 460,
+  461, 462, 463). Rank 3 now 110/149 (13 accepted + 97 closed); total
+  457/548. Eight carry-overs, no behaviour changes. 450 (flowers.rs):
+  BushBlock -> VegetationBlock is a pure rename (identical methods)
+  and the flower SHAPE is the same box in both versions
+  (box(5,0,5,11,10,11) vs column(6,10,0)); the effects table is
+  unchanged. 451 (world_upgrader.rs): the 1.21.5 WorldData ctor param
+  is saved-data-context plumbing, and ChunkUpgrader's getInt ->
+  getIntOr is the default the Rust's verify_chunk_pos already uses.
+  456 (data commands): getAsText/getData pattern-matching refactors
+  and NumericTag.getAsDouble -> doubleValue; the Rust's as_text
+  matches both versions. 458 (pattern.rs): the tropical fish tooltip
+  moved from MobBucketItem.appendHoverText (1.21.4) to
+  Pattern.addToTooltip (1.21.5) with identical lines; the Rust matches
+  1.21.4's form and its doc citation was fixed to the 1.21.4 location
+  (the report's module mapping to pattern.rs is heuristic -- that file
+  is a pack.mcmeta regex, the tooltip lives in item_tooltip.rs). 460
+  (banners.rs): MapBanner lost only its LIST_CODEC static and a codec
+  constant rename; fields and methods unchanged. 461
+  (code_of_conduct.rs): handleConfigurationFinished's protocol-template
+  refactor (the 1.21.5-only $1 class is absent from the 1.21.4 jar);
+  the Rust implements the screen, not the Java bind. 462
+  (fireworks.rs): mulPose(Quaternionf -> Quaternionfc) and the
+  appendHoverText move to the Fireworks component; the Rust's
+  firework_lines reads the component. 463 (leads.rs): the fence shape
+  plumbing was restructured (lazy Function, column/boxZ) with the
+  parameter meanings changed half-width -> full width; the union
+  geometry (post 6,0,6,10,16,10, arms to the edges, collision post 24
+  tall) is identical in both versions.
