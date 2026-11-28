@@ -270,11 +270,12 @@ impl ScreenEffects {
 /// ticks it has no effect (`MobEffects.NAUSEA`, `endsWithin(60)`).
 const NAUSEA_BLEND_OUT: i32 = 60;
 
-/// `MobEffectInstance.BlendState.hasEffect`: still past the blend-out point,
-/// so the effect counts as on (`!endsWithin(60)` for `MobEffects.NAUSEA`).
-/// 1.21.4's `handleConfusionTransitionEffect` reads it directly; no
-/// renderer reads the blend factor itself (that is 1.21.5's
-/// `getEffectBlendFactor` use), so there is no blend-state field to set.
+/// `LocalPlayer.handleConfusionTransitionEffect`'s confusion branch: the
+/// Confusion effect counts as on while it is past its blend-out point
+/// (`hasEffect(CONFUSION) && !endsWithin(60)`). 1.21.4's `BlendState` has
+/// no `hasEffect` (that is 1.21.5's); the blend factor itself
+/// (`BlendState.tick`/`getFactor`, 22 ticks for DARKNESS) is the darkness
+/// blend in `game/sculk.rs`, read by the fog and light paths.
 pub fn nausea_has_effect(e: &EffectInstance) -> bool {
     !e.ends_within(NAUSEA_BLEND_OUT)
 }

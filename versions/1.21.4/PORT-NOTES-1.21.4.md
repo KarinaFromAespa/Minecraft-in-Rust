@@ -7253,3 +7253,42 @@ near/far 0.05/10, rotationX(PI), per-face rotateX/rotateY), which the
 Rust's panorama.rs:173 already cites and implements with its own wgpu
 pipeline. Rank 3 after batch 109: 13 accepted + 133 closed = 146/149;
 total 493/548.
+
+Batch 110 (2026-11-29, rank 3 G5: report ids 415, 427, 428, 435):
+415 (datapack.rs): MacroFunction.stringify -- the Rust matched 1.21.4
+except two DecimalFormat("#") edges in its decimal() helper: infinity
+(Rust "inf" vs DecimalFormat "∞") and -0.0 (Rust mapped "-0" to "0" vs
+DecimalFormat keeping "-0"). Fixed decimal() and added the edge test
+macro_stringify_matches_vanillas_decimal_format_edges (passes locally).
+The fallback Tag.getAsString() is already the Rust snbt::to_snbt
+compact form. 427 (cit.rs): packrat Rule -- name collision only;
+cit.rs's Rule is OptiFine CIT, not vanilla's packrat Rule. The real
+1.21.4-vs-1.21.5 Rule diff (parse returns Optional<T> in 1.21.4, bare
+T in 1.21.5) belongs to item 360 (packrat.rs, batch 114), and the Rust
+packrat already returns Option<V>, the 1.21.4 form. 428
+(pack_palette.rs): RedStoneWireBlock -- the 8-method diff is the
+shape-cache refactor plus onRemove -> affectNeighborsAfterRemoval;
+the COLORS lambda is byte-identical in both versions (f = power/15,
+r = f*0.6 + (f>0 ? 0.4 : 0.3), g = clamp(f*f*0.7-0.5),
+b = clamp(f*f*0.6-0.7)), which the Rust's mesher.rs redstone_color()
+already reimplements exactly. The redstone gameplay gap (B11-G02)
+lives in level/redstone.rs, not here. 435 (screen_effects.rs):
+MobEffectInstance$BlendState -- 1.21.4 has computeTarget +
+getBlendDuration, 1.21.5 replaces them with hasEffect. Verified
+matching: BlendState.tick (factor += clamp(target-factor, -1/22,
++1/22), target 1.0 iff !endsWithin(22)) is sculk.rs
+darkness_blend_tick (DARKNESS_BLEND 22; setBlendDuration(22) is on
+DARKNESS only); setImmediate/copyFrom are darkness_blend_added;
+getFactor (lerp previous/current by partial) is darkness_blend,
+read by the darkness fog and light paths; LocalPlayer.
+handleConfusionTransitionEffect's spinning steps match
+ScreenEffects.tick exactly (portal 0.0125 with PORTAL_TRIGGER and
+screen close in client_portal_effect, confusion 1/150 past blend-out,
+decay -0.05, clamp 0..1). Only doc citations were wrong and are fixed:
+nausea_has_effect cited the nonexistent 1.21.4 BlendState.hasEffect
+and claimed no renderer reads the blend factor (1.21.4's
+DarknessFogFunction and LightTexture do read
+MobEffectInstance.getBlendFactor); darkness_target cited hasEffect
+instead of computeTarget. Rank 3 after batch 110: 137/149 done
+(closed 114 + ported 8 + carry-over 2 + accepted 13, counted once);
+total 497/548.

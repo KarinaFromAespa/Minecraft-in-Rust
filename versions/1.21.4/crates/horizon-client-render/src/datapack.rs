@@ -545,11 +545,16 @@ fn decimal(v: f64) -> String {
     if v.is_nan() {
         return "NaN".into();
     }
+    if v.is_infinite() {
+        // `DecimalFormat` writes its infinity symbol, not Rust's "inf".
+        return if v > 0.0 { "∞".into() } else { "-∞".into() };
+    }
     let s = format!("{v:.15}");
     let s = s.trim_end_matches('0').trim_end_matches('.');
-    if s == "-0" || s.is_empty() {
+    if s.is_empty() {
         "0".into()
     } else {
+        // `DecimalFormat("#")` keeps "-0" for negative zero.
         s.to_owned()
     }
 }
@@ -1296,6 +1301,19 @@ mod tests {
         // A plain function needs no arguments.
         let plain = parse_function("a:p", "say 1").unwrap();
         assert_eq!(plain.instantiate(None).unwrap(), ["say 1"]);
+    }
+
+    #[test]
+    fn macro_stringify_matches_vanillas_decimal_format_edges() {
+        // `MacroFunction.stringify`: `DecimalFormat("#")`, max 15 fraction
+        // digits, US symbols — including its infinity symbol and "-0".
+        assert_eq!(stringify(&Tag::Double((-0.0f64).to_bits())), "-0");
+        assert_eq!(stringify(&Tag::Double(f64::INFINITY.to_bits())), "∞");
+        assert_eq!(stringify(&Tag::Double(f64::NEG_INFINITY.to_bits())), "-∞");
+        assert_eq!(stringify(&Tag::Double(f64::NAN.to_bits())), "NaN");
+        assert_eq!(stringify(&Tag::Float(f32::INFINITY.to_bits())), "∞");
+        assert_eq!(stringify(&Tag::Float(1.5f32.to_bits())), "1.5");
+        assert_eq!(stringify(&Tag::Int(42)), "42");
     }
 
     #[test]

@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 109,
-  "note": "Batch 109 (2026-11-28, rank 3 G5: report ids 377, 381, 388, 396): four carry-overs; the only code change is two 1.21.5 doc citations corrected to InstrumentItem.appendHoverText (377).",
+  "batch": 110,
+  "note": "Batch 110 (2026-11-29, rank 3 G5: report ids 415, 427, 428, 435): 415 ported (MacroFunction.stringify DecimalFormat edges: infinity and -0.0); 427/428 carry-overs (packrat Rule name collision; RedStoneWireBlock COLORS lambda identical); 435 carry-over (BlendState verified matching; two 1.21.5 doc citations corrected to the 1.21.4 form).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -688,6 +688,26 @@
       "module": "crates/horizon-client-render/src/gfx/panorama.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 109, jar-verified 2026-11-28): CubeMap 4m. 1.21.5 renders through RenderPipelines.PANORAMA with a lazily built cubeMapBuffer (new initializeVertices) instead of the 1.21.4 Tesselator + CoreShaders.POSITION_TEX_COLOR + enableBlend/disableCull; the picture is the same: setPerspective(1.4835298f [85 deg FOV], width/height, 0.05f, 10.0f), rotationX(PI), per-face translate(0.5/256, 0.5/256) + rotateX/rotateY by 0.017453292f per degree, quads at +-1 with white alpha 255. The Rust's panorama.rs:173 cites exactly that (\"CubeMap.render: 85-degree FOV, near/far 0.05/10, rotationX(PI), rotateX, rotateY\") and implements it with its own wgpu panorama pipeline (perspective_rh 85 deg, 0.05, 10.0 * rotation_x(PI) * rotation_x(pitch) * rotation_y(yaw))."
+    },
+    "415": {
+      "module": "crates/horizon-client-render/src/datapack.rs",
+      "verdict": "ported",
+      "evidence": "PORTED (batch 110, jar-verified 2026-11-29): MacroFunction.stringify (1m). 1.21.4 stringify: Float/Double via DecimalFormat(\"#\", max 15 fraction digits, US symbols), Byte/Short/Long via String.valueOf, else Tag.getAsString() (StringTag raw, Int plain, compounds/lists/arrays SNBT). The Rust matched all arms except two DecimalFormat edges in its decimal() helper: infinity (Rust \"inf\"/\"-inf\" vs DecimalFormat \"\u221e\"/\"-\u221e\") and -0.0 (Rust mapped \"-0\" to \"0\" vs DecimalFormat keeping \"-0\"). Fixed decimal() (infinite -> \u221e/-\u221e, keep -0) with a new test macro_stringify_matches_vanillas_decimal_format_edges (passes locally, 2 macro tests green). The fallback Tag.getAsString() is already the Rust snbt::to_snbt compact form (StringTagVisitor, 1.21.4 SIMPLE_VALUE key rule)."
+    },
+    "427": {
+      "module": "crates/horizon-client-render/src/cit.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 110, jar-verified 2026-11-29): packrat Rule + RuleAction + WrappedTerm + SimpleRuleAction (9m). Name collision only: cit.rs re-exports horizon_optifine::cit::Rule (OptiFine custom-item-texture rules), which has nothing to do with vanilla net.minecraft.util.parsing.packrat.Rule. The real 1.21.4-vs-1.21.5 Rule diff is the parse return type (1.21.4 Optional<T>, 1.21.5 bare T; SimpleRuleAction <T> vs <S,T>) and belongs to item 360 (packrat.rs, batch 114); the Rust packrat (horizon-command/src/packrat.rs) already returns Option<V> throughout, the 1.21.4 form. No change to cit.rs."
+    },
+    "428": {
+      "module": "crates/horizon-client-render/src/pack_palette.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 110, jar-verified 2026-11-29): RedStoneWireBlock 8m. The diff is the shape-cache refactor (1.21.4 static SHAPE_DOT/SHAPES_FLOOR/SHAPES_UP/SHAPES_CACHE + calculateShape vs 1.21.5 instance shapes function + makeShapes) and onRemove -> affectNeighborsAfterRemoval (1.21.5 block-API rename). The COLORS lambda (static/bin/bash) is byte-identical in both versions: f = power/15.0f, r = f*0.6 + (f>0 ? 0.4 : 0.3), g = clamp(f*f*0.7-0.5), b = clamp(f*f*0.6-0.7), ARGB.colorFromFloat(1, r, g, b). The Rust mesher.rs redstone_color() reimplements exactly that in f32 with truncation casts, and pack_palette.rs only cites COLORS in its redstone() doc comment (spelled RedStoneWireBlock, correct). The redstone gameplay gap (B11-G02, wire never updates power) lives in level/redstone.rs, not here. No change."
+    },
+    "435": {
+      "module": "crates/horizon-client-render/src/screen_effects.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 110, jar-verified 2026-11-29): MobEffectInstance$BlendState 5m. 1.21.4 has computeTarget + getBlendDuration (1.21.5 replaces them with hasEffect). Verified matching: BlendState.tick (factor += clamp(target-factor, -1/22, +1/22), target 1.0 iff !endsWithin(22)) is sculk.rs darkness_blend_tick (DARKNESS_BLEND 22, setBlendDuration(22) is on DARKNESS only); setImmediate/copyFrom are darkness_blend_added; getFactor (lerp previous/current by partial) is darkness_blend; the factor is read by DarknessFogFunction + LightTexture.getDarknessGamma (Rust: darkness_fog/darkness_lighting, same cos pulse). LocalPlayer.handleConfusionTransitionEffect spinning steps match ScreenEffects.tick exactly (portal 0.0125 with PORTAL_TRIGGER + screen close in client_portal_effect, confusion 1/150 past blend-out, decay -0.05, clamp 0..1; the portal branch needs transition == CONFUSION, which client_inside_nether_portal encodes). Only doc citations were wrong and are fixed: nausea_has_effect cited the nonexistent 1.21.4 BlendState.hasEffect (that is 1.21.5s) and claimed no renderer reads the blend factor; darkness_target cited hasEffect instead of computeTarget."
     }
   }
 }

@@ -2440,7 +2440,8 @@ impl Game<'_> {
 /// and how long before the end the fade out starts.
 const DARKNESS_BLEND: i32 = 22;
 
-/// `MobEffectInstance.BlendState.hasEffect` for the darkness effect.
+/// `MobEffectInstance.BlendState.computeTarget` for the darkness effect:
+/// 1.0 while it is past its blend-out point, else 0.0.
 fn darkness_target(e: &EffectInstance) -> f32 {
     if e.ends_within(DARKNESS_BLEND) {
         0.0
