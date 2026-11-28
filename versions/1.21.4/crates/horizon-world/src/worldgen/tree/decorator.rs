@@ -44,7 +44,8 @@ impl Lists {
             roots,
         }
     }
-    /// TreeFeature.getLowestTrunkOrRootOfTree.
+    /// 1.21.4's `AlterGroundDecorator.place` has this logic inline; the
+    /// `TreeFeature.getLowestTrunkOrRootOfTree` helper is new in 1.21.5.
     fn lowest(&self) -> Vec<[i32; 3]> {
         if self.roots.is_empty() {
             self.logs.clone()
@@ -85,6 +86,8 @@ pub(crate) enum TreeDecorator {
         ground: f32,
         patch: Option<Box<FeatureDefinition>>,
     },
+    /// 1.21.5-only: `PlaceOnGroundDecorator` does not exist in 1.21.4, so no
+    /// 1.21.4 data can reference it; the arm stays as dead-in-1.21.4 code.
     PlaceOnGround {
         tries: i32,
         radius: i32,

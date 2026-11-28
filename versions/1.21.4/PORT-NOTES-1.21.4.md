@@ -6661,3 +6661,27 @@ shape for the review batches.
   769 with the adapter keeping its own 26.2-layout codecs; that decision
   also touches closed item 161's verdict that the adapter handles the
   prefixed palettes. No code change in this batch.
+  Batch 91 (2026-11-28, rank 3 G1: report ids 414, 416, 417, 418). Rank 3
+  now 44/149 (13 accepted + 31 closed); total 404/548. 414 CARRY-OVER
+  (tree decorator): TreeFeature differs only by isVine private->public
+  (body identical) and the new getLowestTrunkOrRootOfTree helper; the
+  Rust's Lists::lowest() implements the helper exactly and 1.21.4's
+  AlterGroundDecorator.place has the same logic inline (verified with
+  names kept), so the AlterGround arm already matches 1.21.4.
+  PlaceOnGroundDecorator does not exist in the 1.21.4 jar (javap: class
+  not found) and no 1.21.4 data can reference minecraft:place_on_ground;
+  the arm stays as dead-in-1.21.4 code per the FallenTreeFeature
+  precedent. Comment-only change: lowest()'s doc now names the 1.21.4
+  inline site and the variant is marked 1.21.5-only. 416 CARRY-OVER
+  (wither skull): checkSpawn differs only by the WitherBoss.moveTo ->
+  snapTo rename; the Rust's check_wither_spawn already spawns at the
+  middle of the bottom row +0.5/+0.55/+0.5 with the forwards-axis yaw,
+  make_invulnerable and the 50-block SUMMONED_ENTITY trigger. 417
+  CARRY-OVER (fishing rod): use differs only by two playSound
+  Player->Entity widenings; the Rust's use_fishing_rod already plays
+  retrieve (1.0) and throw (0.5) at the player with pitch 0.4 /
+  (rand*0.4 + 0.8). 418 CARRY-OVER (golem defense): canUse differs only
+  by instanceof pattern-matching form (same isSpectator/isCreative
+  calls); the Rust's DefendVillage::can_use already matches
+  (spectator/creative early-false, 10x8x10 box, reputation <= -100,
+  line of sight).

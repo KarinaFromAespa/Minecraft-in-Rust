@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 90,
-  "note": "Batch 90 (2026-11-28): 409 carry-over \u2014 sniffer egg tick differs only by playSound widenings and the moveTo/snapTo rename, and Block.column(14, 12, 0, 16) is exactly box(1, 0, 2, 15, 16, 14). 410 carry-over \u2014 wandering-trader tick's int->void return is unused; the Rust already returns () with matching constants (1200/24000/25/75). 413 carry-over \u2014 SolidBucketItem.emptyContents differs only by the Player->LivingEntity widening; the Rust's bucket_empty takes no user. 408 DEFERRED for a protocol-layer decision \u2014 the heightmaps NBT-vs-Map diff is real, but the adapter already bridges it and the native codec is the 26.2 internal layout; a real 1.21.4 server connects with no adapter and its chunk packets fail the game's decoder (proven by direct decode). Rank 3 now 40/149 (13 accepted + 27 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
+  "batch": 91,
+  "note": "Batch 91 (2026-11-28): 414 carry-over \u2014 AlterGround already matches 1.21.4's inline lowest-trunk logic; PlaceOnGround stays as dead-in-1.21.4 code (no such class in the 1.21.4 jar). 416 carry-over \u2014 wither checkSpawn differs only by the moveTo/snapTo rename; the Rust's spawn position/yaw/invulnerable/trigger match. 417 carry-over \u2014 fishing-rod use differs only by two playSound Player->Entity widenings; the Rust plays the same retrieve/throw sounds with the same pitch formula. 418 carry-over \u2014 golem-defense canUse differs only by instanceof pattern-matching form; the Rust's spectator/creative/reputation <= -100/box/line-of-sight match. Rank 3 now 44/149 (13 accepted + 31 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -228,6 +228,26 @@
       "module": "crates/horizon-world/src/level/buckets.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 90, jar-verified 2026-11-28): SolidBucketItem.emptyContents differs only in its first parameter (Player in 1.21.4, LivingEntity in 1.21.5); the body is identical. The Rust's bucket_empty takes no user at all \u2014 it models only the world effects (powder-snow place with FLUID_PLACE + sound, fluid place, evaporate hiss) \u2014 so the widening changes nothing it does. No code change."
+    },
+    "414": {
+      "module": "crates/horizon-world/src/worldgen/tree/decorator.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 91, jar-verified 2026-11-28): TreeFeature differs only by isVine private->public (body identical: isStateAtPosition with the vine predicate) and the new getLowestTrunkOrRootOfTree helper (+52 lines, new in 1.21.5). The Rust's Lists::lowest() implements the helper's logic exactly (roots empty -> logs; roots[0].y == logs[0].y -> logs + roots; else roots), and 1.21.4's AlterGroundDecorator.place has the same logic inline (verified with names kept: roots/logs, isEmpty, get(0).getY() comparison, then min-Y filter and circle placements), so the AlterGround arm already matches 1.21.4. PlaceOnGroundDecorator does not exist in the 1.21.4 jar (javap: class not found) and no 1.21.4 data can reference minecraft:place_on_ground; the arm stays as dead-in-1.21.4 code per the FallenTreeFeature precedent. Comment-only change: lowest()'s doc now names the 1.21.4 inline site and the PlaceOnGround variant is marked 1.21.5-only."
+    },
+    "416": {
+      "module": "crates/horizon-client/src/game/wither.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 91, jar-verified 2026-11-28): WitherSkullBlock.checkSpawn differs only by WitherBoss.moveTo -> WitherBoss.snapTo, a rename of the same position set (normalized diff IDENTICAL; names-kept diff shows only the rename). The Rust's check_wither_spawn already matches 1.21.4: Peaceful gate, pattern find, clear pattern blocks, spawn at the middle of the bottom row +0.5/+0.55/+0.5 facing along the pattern's forwards axis (West/East -> yaw 0.0, else 90.0), make_invulnerable, and the SUMMONED_ENTITY trigger for players within 50 blocks. No code change."
+    },
+    "417": {
+      "module": "crates/horizon-client/src/game/fishing.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 91, jar-verified 2026-11-28): FishingRodItem.use differs only by two Level.playSound Player->Entity widenings (same sound, position, volume, pitch; normalized diff IDENTICAL). The Rust's use_fishing_rod already plays entity.fishing_bobber.retrieve (volume 1.0) on reel-in and entity.fishing_bobber.throw (volume 0.5) on cast, both at the player's position with pitch 0.4 / (rand*0.4 + 0.8), plus the item_interact_finish/start game events. No code change."
+    },
+    "418": {
+      "module": "crates/horizon-client/src/mobs/golem.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 91, jar-verified 2026-11-28): DefendVillageTargetGoal.canUse differs only by Java instanceof pattern-matching form -- 1.21.4 calls LivingEntity.isSpectator() then casts to Player for isCreative(); 1.21.5 binds the Player once and calls Player.isSpectator() + Player.isCreative() -- same methods, semantically identical. The Rust's DefendVillage::can_use already matches: spectator/creative early-false, box 10x8x10 around the golem, any villager in the box whose gossips give the player a reputation <= -100, plus line of sight. No code change."
     }
   }
 }
