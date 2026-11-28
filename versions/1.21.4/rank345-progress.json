@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 111,
-  "note": "Batch 111 (2026-11-29, rank 3 G5: report ids 438, 439, 440, 444): four carry-overs; the only code changes are 1.21.5/26.x doc citations corrected to the 1.21.4 form (five in the sprite-animation files for 439, four in trims.rs for 440). Adjacent finding recorded on 440: the direct-trim-holder stream codec does not match 1.21.4s wire form (rank-2 item 199 territory).",
+  "batch": 112,
+  "note": "Batch 112 (2026-11-29, rank 3 G5: report ids 449, 459, 483, 502): G5 complete. 449/459/483 carry-overs (strider SaddleLayer form, CompileTask rename, ResortTransparencyTask POV logic); 502 ported (VANILLA_ORDER re-pinned to 1.21.4s 65 biomes \u2014 two 26.x biomes dropped, all later numbers corrected).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -728,6 +728,26 @@
       "module": "crates/horizon-client-render/src/mesher/lighting.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 111, jar-verified 2026-11-29): ModelBlockRenderer$SizeInfo (3m). Both versions have the same 12 constants in the same order (DOWN, UP, NORTH, SOUTH, WEST, EAST, FLIP_DOWN, FLIP_UP, FLIP_NORTH, FLIP_SOUTH, FLIP_WEST, FLIP_EAST). 1.21.4 computes shape = direction.get3DDataValue() + (flip ? DIRECTIONS.length : 0) = the ordinal (DOWN 0, UP 1, NORTH 2, SOUTH 3, WEST 4, EAST 5, FLIP_* 6..11); 1.21.5 stores index = the ordinal directly and adds COUNT = 12. Identical values \u2014 pure refactor. The Rusts lighting.rs uses exactly those constants (DOWN 0 ... FLIP_EAST 11, SizeInfo indices into the face shape). No change."
+    },
+    "449": {
+      "module": "crates/horizon-client/src/shadows.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 112, jar-verified 2026-11-29): StriderRenderer (3m). The 1.21.5 saddle rework: 1.21.4 ctor adds a SaddleLayer (STRIDER_SADDLE/STRIDER_BABY_SADDLE baked models + hardcoded textures/entity/strider/strider_saddle.png) and extractRenderState sets isSaddled from Strider.isSaddled() (= ItemBasedSteering.hasSaddle()); 1.21.5 replaces both with a SimpleEquipmentLayer (EquipmentLayerRenderer + LayerType.STRIDER_SADDLE) and a saddle ItemStack from getItemBySlot(EquipmentSlot.SADDLE). The Rust is the 1.21.4 form throughout: mobs/render.rs SaddleLayer comment + strider#saddle layer with entity/strider/strider_saddle, shown when m.extra.saddled (a boolean, the steering form) and not a baby; cold texture when suffocating; shadows.rs halves a baby striders radius again (0.5 * 0.5 * 0.5 = 0.125, test-pinned), matching both versions getShadowRadius. No change."
+    },
+    "459": {
+      "module": "crates/horizon-client-render/src/streaming.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 112, jar-verified 2026-11-29): SectionRenderDispatcher$RenderSection$CompileTask (2m). The only diff is the rename getOrigin() -> getRenderOrigin() (field origin -> renderOrigin); the task bodies are identical. The Rust has no RenderSection origin/renderOrigin accessor anywhere (streaming.rs/chunk.rs); its section-compile workers use their own section coordinates. No change."
+    },
+    "483": {
+      "module": "crates/horizon-client-render/src/gfx/translucency.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 112, jar-verified 2026-11-29): SectionRenderDispatcher$RenderSection$ResortTransparencyTask (1m). doTask is logic-identical in both versions: createVertexSorting, then cancel when TranslucencyPointOfView.of(camera, sectionNode) equals the stored POV and is not axis-aligned, then sort and upload. The 1.21.5 diff is signature refactors only (createVertexSorting() -> createVertexSorting(SectionPos), uploadSectionIndexBuffer(result, buffer) -> (result, RenderType)). The Rusts SortState::update implements the 1.21.4 POV exactly: pov[i] = clamp((block[i] >> 4) - (origin[i] >> 4), -1, 1) (= TranslucencyPointOfView.getCoordinate: clamp(blockToSectionCoord(camera) - sectionCoord, -1, 1)); isAxisAligned is true iff a component is 0 (Rust: skip when last_pov == pov and (same block or no component is 0)), and the sort uses the sections own origin as the relative base. No change."
+    },
+    "502": {
+      "module": "crates/horizon-shaders/src/biomes.rs",
+      "verdict": "ported",
+      "evidence": "PORTED (batch 112, jar-verified 2026-11-29): BiomeTags (1m). 1.21.5 adds SPAWNS_COLD_VARIANT_FARM_ANIMALS + SPAWNS_WARM_VARIANT_FARM_ANIMALS (data files spawns_*_variant_farm_animals.json exist only in 1.21.5; 1.21.4 has only the frog variants). Those tags feed the 1.21.5 farm-animal variant system, not the shader uniforms, so no tag handling was added. But verifying biomes.rs against the 1.21.4 jar caught a real 26.3 leak in the same file: VANILLA_ORDER carried 26.x-only dappled_forest + sulfur_caves (absent from the 1.21.4, 1.21.5 and 1.21.11 jars), shifting every later biomes number by +1/+2. Re-pinned to 1.21.4s 65 Biomes in declaration order (verified order-identical against javap of the 1.21.4 Biomes class): ocean 46->45, soul_sand_valley 60->58, the_end 62->60, badlands 28->27, pale_garden 13->12, windswept_hills 21->20, mod biomes after vanilla 67/68->65/66; removed dappled_forest from TAGGED and from the category test table; docs now cite 1.21.4 (the Iris-numbering rule itself was read back with a probe pack on 26.3; the is_* tag contents feeding the categories are byte-identical between 1.21.4 and 1.21.5). All 4 biomes tests pass locally."
     }
   }
 }

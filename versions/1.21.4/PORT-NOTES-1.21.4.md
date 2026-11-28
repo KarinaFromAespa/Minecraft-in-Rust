@@ -7338,3 +7338,29 @@ description component, decal bool). Only inline/direct holders are
 affected; registry references are fine. Re-opening item 199 is a
 parent call. Rank 3 after batch 111: 141/149 done (closed 118 +
 ported 8 + carry-over 2 + accepted 13, counted once); total 501/548.
+
+Batch 112 (2026-11-29, rank 3 G5: report ids 449, 459, 483, 502) -- G5 complete:
+449 (shadows.rs): StriderRenderer -- the 1.21.5 saddle rework (SaddleLayer
++ isSaddled boolean -> SimpleEquipmentLayer + saddle ItemStack from the
+SADDLE slot). The Rust is the 1.21.4 form throughout: the strider saddle
+layer with the hardcoded strider_saddle texture, shown when the steering
+boolean extra.saddled is set; cold texture when suffocating; baby shadow
+radius halved again (0.125, test-pinned). 459 (streaming.rs):
+CompileTask -- the only diff is the getOrigin() -> getRenderOrigin()
+rename; the Rust has no such accessor. 483 (gfx/translucency.rs):
+ResortTransparencyTask -- doTask is logic-identical; the Rust's
+SortState::update implements 1.21.4's TranslucencyPointOfView exactly
+(clamp((block >> 4) - (origin >> 4), -1, 1); axis-aligned iff a
+component is 0). 502 (biomes.rs): PORTED. 1.21.5 adds the
+spawns_cold/warm_variant_farm_animals tags (farm-animal variants, not
+shader uniforms), but verifying the file caught a real 26.3 leak:
+VANILLA_ORDER carried the 26.x-only dappled_forest + sulfur_caves,
+shifting every later biome's number. Re-pinned to 1.21.4's 65 Biomes
+in declaration order (verified order-identical against the 1.21.4
+jar): ocean 46 -> 45, soul_sand_valley 60 -> 58, the_end 62 -> 60,
+badlands 28 -> 27, pale_garden 13 -> 12, windswept_hills 21 -> 20, mod
+biomes after vanilla 67/68 -> 65/66. Docs now cite 1.21.4. All 4
+biomes tests pass locally. Rank 3 after batch 112: 145/149 done
+(closed 121 + ported 9 + carry-over 2 + accepted 13, counted once);
+total 505/548. G5 (batches 108-112) is complete; remaining rank 3 is
+G6 (113-114: items 359, 360) and the 2 deferred Realms items (362, 497).

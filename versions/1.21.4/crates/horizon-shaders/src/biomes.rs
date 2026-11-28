@@ -4,8 +4,9 @@
 //! Decisions (impl-plan.md, OQ-11):
 //! - `biome` is not the biome's registry id (the registry lists biomes sorted by identifier):
 //!   Iris 1.11.7 numbers vanilla's biomes in the order vanilla's `Biomes` class declares them
-//!   ([`VANILLA_ORDER`]; forest 8, ocean 46, soul_sand_valley 60, the_end 62, read back with a
-//!   probe pack). Other biomes follow, in registry order (not measured). `BIOME_<NAME>` is the
+//!   ([`VANILLA_ORDER`]; forest 8, ocean 45, soul_sand_valley 58, the_end 60 in 1.21.4's
+//!   order — the rule itself was read back with a probe pack on 26.3).
+//!   Other biomes follow, in registry order (not measured). `BIOME_<NAME>` is the
 //!   number of `minecraft:<name>`. Names from before the 1.18 renames map to the biome that
 //!   replaced them. A `BIOME_` name that matches no biome reads -1, so it never equals the
 //!   player's biome.
@@ -56,9 +57,9 @@ const LEGACY: &[(&str, &str)] = &[
     ("NETHER", "nether_wastes"),
 ];
 
-/// Vanilla 26.3's biomes in the order `net.minecraft.world.level.biome.Biomes` declares them:
+/// Vanilla 1.21.4's biomes in the order `net.minecraft.world.level.biome.Biomes` declares them:
 /// a pack's number for each.
-pub const VANILLA_ORDER: [&str; 67] = [
+pub const VANILLA_ORDER: [&str; 65] = [
     "the_void",
     "plains",
     "sunflower_plains",
@@ -70,7 +71,6 @@ pub const VANILLA_ORDER: [&str; 67] = [
     "forest",
     "flower_forest",
     "birch_forest",
-    "dappled_forest",
     "dark_forest",
     "pale_garden",
     "old_growth_birch_forest",
@@ -115,7 +115,6 @@ pub const VANILLA_ORDER: [&str; 67] = [
     "dripstone_caves",
     "lush_caves",
     "deep_dark",
-    "sulfur_caves",
     "nether_wastes",
     "warped_forest",
     "crimson_forest",
@@ -180,7 +179,7 @@ pub fn constants(biomes: &[&str]) -> HashMap<String, f64> {
     out
 }
 
-/// Vanilla 26.3's biome tags (`BiomeTags`, `data/minecraft/tags/worldgen/biome/is_*.json`) that
+/// Vanilla 1.21.4's biome tags (`BiomeTags`, `data/minecraft/tags/worldgen/biome/is_*.json`) that
 /// give a vanilla biome its category, with the category; no biome is in two of them.
 const TAGGED: [(&str, &[&str]); 11] = [
     (
@@ -217,7 +216,6 @@ const TAGGED: [(&str, &[&str]); 11] = [
             "flower_forest",
             "birch_forest",
             "old_growth_birch_forest",
-            "dappled_forest",
             "dark_forest",
             "pale_garden",
             "grove",
@@ -357,8 +355,8 @@ mod tests {
             "minecraft:pale_garden",
             "minecraft:windswept_hills",
         ]);
-        assert_eq!(c["BIOME_PALE_GARDEN"], 13.0);
-        assert_eq!(c["BIOME_EXTREME_HILLS"], 21.0);
+        assert_eq!(c["BIOME_PALE_GARDEN"], 12.0);
+        assert_eq!(c["BIOME_EXTREME_HILLS"], 20.0);
         assert_eq!(c["CAT_NETHER"], 16.0);
         assert_eq!(c["PPT_SNOW"], 2.0);
         assert!(!c.contains_key("BIOME_SULFUR_CAVES"));
@@ -377,7 +375,7 @@ mod tests {
     /// `CAT_UNDERGROUND` (17 and 18) in a custom uniform.
     #[test]
     fn categories_follow_iris() {
-        let iris: [(&str, i32); 67] = [
+        let iris: [(&str, i32); 65] = [
             ("the_void", 0),
             ("plains", 5),
             ("sunflower_plains", 5),
@@ -389,7 +387,6 @@ mod tests {
             ("forest", 10),
             ("flower_forest", 10),
             ("birch_forest", 10),
-            ("dappled_forest", 10),
             ("dark_forest", 10),
             ("pale_garden", 10),
             ("old_growth_birch_forest", 10),
@@ -434,7 +431,6 @@ mod tests {
             ("dripstone_caves", 5),
             ("lush_caves", 5),
             ("deep_dark", 5),
-            ("sulfur_caves", 5),
             ("nether_wastes", 16),
             ("warped_forest", 16),
             ("crimson_forest", 16),
@@ -453,7 +449,7 @@ mod tests {
         assert_eq!((c["CAT_MOUNTAIN"], c["CAT_UNDERGROUND"]), (17.0, 18.0));
     }
 
-    /// Iris 1.11.7's `BIOME_*` constants, read back with a probe pack: each of the 67 is the
+    /// Iris 1.11.7's `BIOME_*` constants, read back with a probe pack: each of the 65 is the
     /// biome's place in vanilla's `Biomes` (here with the registry in identifier order).
     #[test]
     fn biome_constants_follow_iris() {
@@ -466,15 +462,15 @@ mod tests {
             "minecraft:the_void",
         ]);
         assert_eq!(c["BIOME_FOREST"], 8.0);
-        assert_eq!(c["BIOME_OCEAN"], 46.0);
-        assert_eq!(c["BIOME_SOUL_SAND_VALLEY"], 60.0);
-        assert_eq!(c["BIOME_THE_END"], 62.0);
-        assert_eq!(c["BIOME_BADLANDS"], 28.0);
+        assert_eq!(c["BIOME_OCEAN"], 45.0);
+        assert_eq!(c["BIOME_SOUL_SAND_VALLEY"], 58.0);
+        assert_eq!(c["BIOME_THE_END"], 60.0);
+        assert_eq!(c["BIOME_BADLANDS"], 27.0);
         assert_eq!(c["BIOME_THE_VOID"], 0.0);
     }
 
     /// Iris 1.11.7's `biome`, read back with a probe pack where the scene world is forest,
-    /// ocean, soul sand valley and the End: 8, 46, 60 and 62. A biome vanilla doesn't have
+    /// ocean, soul sand valley and the End: 8, 45, 58 and 60. A biome vanilla doesn't have
     /// comes after vanilla's (Horizon's choice; not measured in Iris).
     #[test]
     fn biomes_are_numbered_as_iris_numbers_them() {
@@ -487,8 +483,8 @@ mod tests {
             "mod:marsh",
         ];
         let ids: Vec<i32> = registry.iter().map(|b| pack_id(b, registry)).collect();
-        assert_eq!(ids, [8, 46, 67, 60, 62, 68]);
+        assert_eq!(ids, [8, 45, 65, 58, 60, 66]);
         assert_eq!(pack_id("minecraft:unknown", registry), -1);
-        assert_eq!(constants(&registry)["BIOME_SOUL_SAND_VALLEY"], 60.0);
+        assert_eq!(constants(&registry)["BIOME_SOUL_SAND_VALLEY"], 58.0);
     }
 }
