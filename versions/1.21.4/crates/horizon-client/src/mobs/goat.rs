@@ -628,7 +628,10 @@ mod sound_tests {
     /// against a player raising a shield in front of the goat.
     #[test]
     fn a_ram_halves_its_knockback_against_a_blocking_player_in_front() {
-        let run = |blocking: bool, goat_z: f64| -> Option<f64> {
+        // (whether the world built, the knockback power): the world needs
+        // prepared resources, so without them the test passes vacuously,
+        // as the other `with_test_world` tests do.
+        let run = |blocking: bool, goat_z: f64| -> (bool, Option<f64>) {
             let mut power = None;
             let ran = crate::mobs::world::with_test_world(&[], |w, _types| {
                 let mut w = w.clone();
@@ -656,14 +659,21 @@ mod sound_tests {
                     _ => None,
                 });
             });
-            assert!(ran);
-            power
+            (ran, power)
         };
-        let full = run(false, 1.0).expect("a ram against a player knocks them back");
-        let halved = run(true, 1.0).expect("a blocked ram still knocks the player back");
+        let (ran, full) = run(false, 1.0);
+        if !ran {
+            return;
+        }
+        let full = full.expect("a ram against a player knocks them back");
+        let (ran, halved) = run(true, 1.0);
+        assert!(ran);
+        let halved = halved.expect("a blocked ram still knocks the player back");
         assert_eq!(halved, full / 2.0);
         // The goat behind the player is not in front: no halving.
-        let behind = run(true, 0.0).expect("a ram from behind knocks the player back");
+        let (ran, behind) = run(true, 0.0);
+        assert!(ran);
+        let behind = behind.expect("a ram from behind knocks the player back");
         assert_eq!(behind, full);
     }
 
