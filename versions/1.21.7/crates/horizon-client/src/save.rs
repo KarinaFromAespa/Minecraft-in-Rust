@@ -5624,7 +5624,9 @@ mod tests {
         chunk.set(1, 70, 2, state("minecraft:red_bed", &[("part", "foot")]));
         chunk.set(5, 71, 5, state("minecraft:bell", &[]));
         chunk.set(6, 71, 5, state("minecraft:stone", &[]));
-        chunk.set(9, 70, 9, state("minecraft:straw_bed", &[("part", "head")]));
+        // 1.21.7 has no straw bed (`PoiTypes.BEDS` is the sixteen colours),
+        // so the second bed head here is a second colour, not a straw bed.
+        chunk.set(9, 70, 9, state("minecraft:white_bed", &[("part", "head")]));
         assert!(encode_poi(&Chunk::empty(0, 0), &tables).is_none());
         let saved = encode_poi(&chunk, &tables).expect("records");
         let Some(Tag::Compound(sections)) = saved.tag.get("Sections") else {
@@ -5652,6 +5654,11 @@ mod tests {
                 (
                     "minecraft:home".into(),
                     Some(Tag::IntArray(vec![33, 70, -15])),
+                    Some(1)
+                ),
+                (
+                    "minecraft:home".into(),
+                    Some(Tag::IntArray(vec![41, 70, -7])),
                     Some(1)
                 ),
                 (
