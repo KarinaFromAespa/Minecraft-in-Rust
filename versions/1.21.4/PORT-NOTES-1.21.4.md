@@ -6747,3 +6747,37 @@ shape for the review batches.
   recipient; non-interpreting string tags render quoted-and-green;
   the separator field is ignored; NbtContents has no 'plain' field in
   either version.
+  Batch 95 (2026-11-28, rank 3 G2: report ids 403, 404, 405, 411). Rank 3 now
+  55/149 (13 accepted + 42 closed); total 415/548. 404 PORT (profiles.rs):
+  OpCommand.opPlayers -- the 1.21.4 success message names the first profile
+  in the collection, not the player just opped: the 1.21.4 lambda captures
+  the collection and reads its first element, while 1.21.5 captures the loop
+  variable (jar-verified: aload 1 + iterator().next().getName() vs aload 5).
+  The Rust op arm now names players[0] for every opped player, pinned by
+  op_names_the_first_profile_for_every_player_it_ops (#[ignore], needs
+  prepared resources: /op @a over two hosted guests asserts two
+  commands.op.success messages both naming the first guest, and both guests
+  in the ops list). DeOpCommands is not in this item, so the deop arm is
+  untouched. 403 CLOSE (extra.rs): SpectateCommand.spectate -- 1.21.5
+  isSpectator() vs 1.21.4 gameMode.getGameModeForPlayer() == SPECTATOR; the
+  Rust spectator() reads self.mode == Spectator, i.e. the 1.21.4 form.
+  JfrCommand is identical modulo constant-pool numbering. Caveat, not a
+  delta: vanilla checks the NAMED player's mode, the Rust checks the acting
+  player's mode -- same in the 1.21.5 parent, normal case source == player.
+  405 CLOSE (raid.rs): RaidCommand.playSound -- the playSeededSound
+  Entity-vs-Player overload differs but both versions pass null, so the call
+  is behaviorally identical; the type argument is getComponent in 1.21.4 vs
+  getResolvedComponent in 1.21.5 and the Rust reads the raw Greedy string,
+  i.e. the 1.21.4 unresolved form. The horn test already pins local-only +
+  position + volume. 411 CLOSE (multiplayer.rs): FaviconTexture.upload --
+  only diff is the DynamicTexture constructor's debug-name supplier in
+  1.21.5; the Rust has no DynamicTexture (pixels stored raw and blitted,
+  64x64-only enforced, misc/unknown_server fallback present).
+
+  STANDING RULE (owner, 2026-11-28, from the item 408 decision): for
+  older-version ports, prefer teaching the game to read the version's own
+  format natively; the adapter (translator) is not a substitute for native
+  reading of the pinned version itself. The adapter exists for joining
+  older servers than the pinned version, not as a substitute for native
+  reading of the pinned version. Applies to any similar adapter-vs-native
+  question in the remaining batches.

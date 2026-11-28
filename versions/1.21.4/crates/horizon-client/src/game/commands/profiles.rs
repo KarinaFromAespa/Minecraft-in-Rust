@@ -142,6 +142,11 @@ impl Game<'_> {
         let mut count = 0;
         match id {
             "op" => {
+                // OpCommand.opPlayers (1.21.4): the success message names the
+                // first profile in the collection, not the player just opped —
+                // the 1.21.4 lambda captures the collection and reads its
+                // first element, while 1.21.5 captures the loop variable.
+                let first = players.first().map(|p| p.name.clone());
                 for player in &players {
                     let added = {
                         let mut l = lists.lock().unwrap();
@@ -156,7 +161,9 @@ impl Game<'_> {
                     if added {
                         self.sync_ops(&lists);
                         count += 1;
-                        self.feedback(Text::translate("commands.op.success", &[lit(&player.name)]));
+                        if let Some(name) = &first {
+                            self.feedback(Text::translate("commands.op.success", &[lit(name)]));
+                        }
                     }
                 }
                 if count == 0 {
@@ -587,5 +594,121 @@ mod tests {
         );
         // The disabled message takes no argument.
         assert!(off.component().get("with").is_none(), "{off:?}");
+    }
+
+    /// `OpCommand.opPlayers` (1.21.4): the success message names the first
+    /// profile in the collection, not the player just opped — the 1.21.4
+    /// lambda captures the collection and reads its first element, while
+    /// 1.21.5 captures the loop variable. `/op @a` over two guests therefore
+    /// reports the first guest twice, while both are opped.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn op_names_the_first_profile_for_every_player_it_ops() {
+        use crate::game::dedicated::Lists;
+        use crate::game::lan::LanSettings;
+        use crate::game::native_machines::tests::server_game;
+        use horizon_client::lan::NetConfig;
+        use horizon_client::lan::hub::HubConfig;
+        use horizon_client::lan::{Joined, PlayerSender, guest::Guest};
+        use horizon_client::server::user_lists::{
+            BanList, IpBanList, NameAndId, OpList, WhiteList,
+        };
+        use horizon_protocol::packets::configuration::ClientInformation;
+        use std::sync::{Arc, Mutex, atomic::AtomicI32, mpsc};
+
+        let mut game = server_game();
+        let dir = std::env::temp_dir().join(format!("horizon-op-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        game.server_lists = Some(Arc::new(Mutex::new(Lists {
+            ops: OpList::new(dir.join("ops.json")),
+            white: WhiteList::new(dir.join("whitelist.json")),
+            bans: BanList::new(dir.join("banned-players.json")),
+            ip_bans: IpBanList::new(dir.join("banned-ips.json")),
+            use_whitelist: false,
+            enforce_whitelist: false,
+            op_level: 4,
+            player_idle_timeout: 0,
+            stop: false,
+            autosave: true,
+            whitelist_bypass: Vec::new(),
+        })));
+        game.set_allow_commands(true);
+        // An integrated LAN host with two placed guests, in join order.
+        let (tx, _rx) = mpsc::channel();
+        game.lan_host(
+            LanSettings {
+                port: 0,
+                guest_commands: true,
+                force_game_mode: false,
+            },
+            NetConfig {
+                listen: false,
+                announce: false,
+                ..NetConfig::loopback(0, String::new(), 2)
+            },
+            HubConfig {
+                default_game_mode: 0,
+                guest_commands: true,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 2,
+                simulation_distance: 2,
+                dimension: "minecraft:overworld".into(),
+                allow_flight: false,
+                seed: 0,
+                max_players: 20,
+                integrated: true,
+                levels: Default::default(),
+            },
+        )
+        .unwrap();
+        for (conn, uuid, name) in [(1u32, 1u128, "SpawnTest"), (2, 2, "Second")] {
+            let mut guest = Guest::new(
+                Joined {
+                    conn,
+                    uuid,
+                    name: name.into(),
+                    properties: Vec::new(),
+                    info: ClientInformation::new(2),
+                    brand: String::new(),
+                    sender: PlayerSender::new(tx.clone(), Arc::default()),
+                    latency: Arc::new(AtomicI32::new(0)),
+                    address: "127.0.0.1:1".parse().unwrap(),
+                    expected: false,
+                    configured: Default::default(),
+                },
+                conn as i32,
+                [0.5, 80.0, 0.5],
+                2,
+            );
+            guest.placed = true;
+            guest.dimension = "minecraft:overworld".into();
+            game.lan.as_mut().unwrap().hub.guests.push(guest);
+        }
+        game.chat_capture = Some(Vec::new());
+        let dispatcher = horizon_client::command::vanilla::build_for(false, true);
+        game.ui.registries.permission = 4;
+        let parsed = dispatcher.parse("op @a", &game.ui.registries);
+        let (ctx, _) = parsed.executable().expect("op is a dedicated command");
+        let (root, ctx) = (parsed.context.clone(), ctx.clone());
+        assert_eq!(game.run_chain(&root, &ctx).unwrap(), 2);
+        let messages = game.chat_capture.take().unwrap();
+        assert_eq!(messages.len(), 2);
+        for m in &messages {
+            assert_eq!(m.translation_key(), Some("commands.op.success"), "{m:?}");
+            assert_eq!(
+                m.component()["with"],
+                serde_json::json!([{ "text": "SpawnTest" }]),
+                "{m:?}"
+            );
+        }
+        let lists = game.server_lists.as_ref().unwrap().lock().unwrap();
+        for (uuid, name) in [(1u128, "SpawnTest"), (2, "Second")] {
+            assert!(lists.ops.contains(&NameAndId {
+                id: uuid,
+                name: name.into()
+            }));
+        }
     }
 }
