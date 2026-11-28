@@ -1629,6 +1629,7 @@ dependencies = [
  "horizon-core",
  "horizon-protocol",
  "horizon-world",
+ "serde_json",
 ]
 
 [[package]]

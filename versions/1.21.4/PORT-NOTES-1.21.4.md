@@ -6700,3 +6700,26 @@ shape for the review batches.
   facing, PUMPKIN_CARVE 1.0/1.0 at the block centre, set_golem_head,
   damage_held(1), SHEAR game event, shears-used stat,
   item_used_on_block trigger. No new test, same as the 1.21.7 fix.
+  Batch 93 (2026-11-28, rank 3 G2: report ids 372, 374, 386, 387).
+  Rank 3 now 49/149 (13 accepted + 36 closed); total 409/548. 372
+  CARRY-OVER (EitherHolder): streamCodec identical; the 1.21.5 change is
+  internal only (fields become a single Either contents) and the Rust
+  already gates the wrapper off pre-1.21.5, pinned by the byte-exact
+  components_read_past_keep_their_bytes test. 374 PORT x2 + carry-overs
+  (args): Component/Style arguments now parse strict JSON
+  (ParserUtils.parseJson, 1.21.4-only; the Rust had the 1.21.5 SNBT
+  form) via new snbt::parse_json_argument, and SlotRanges renames
+  'saddle' to 'horse.saddle' (also in game/commands/items.rs
+  slots_named); NbtTag/CompoundTag/Particle carry over;
+  ResourceSelector + ParserBasedArgument are 1.21.5-only, left as
+  dead-in-1.21.4 code. Found, out of scope: no 'villager.' range in
+  slot_ranges() (both jars have it) and vanilla's TagParser accepts '='
+  as a compound separator ({foo=bar} is a jar suggestion example) but
+  the Rust's SNBT grammar rejects it. 386 CARRY-OVER (screenshots):
+  the 1.21.5 rewrite is engine-internal; the launcher only lists files
+  and the game's F2 capture already matches 1.21.4's grab. 387 PORT
+  (scoreboard_cmd): display names now keep the raw component (1.21.4
+  getComponent); the 1.21.5 getResolvedComponent resolution at command
+  time is dropped (Env::resolve trait method and the GameEnv override
+  removed; Game::resolve_component stays for the books/bossbars
+  display-time paths).

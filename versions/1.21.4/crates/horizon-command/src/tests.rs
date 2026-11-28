@@ -1275,3 +1275,34 @@ fn h149_oblique_local_offsets_are_grouped_before_the_origin() {
         "exact oblique local-coordinate bit mismatches: {failures:#?}"
     );
 }
+
+#[test]
+fn component_and_style_arguments_take_strict_json() {
+    // ParserUtils.parseJson (1.21.4): strict JSON only. SNBT spellings are
+    // the 1.21.5 ParserBasedArgument form and fail here; the NBT arguments
+    // stay SNBT (TagParser.readValue/readStruct) and still accept them.
+    let reg = reg();
+    let mut r = Reader::new("{\"text\":\"hi\"}");
+    assert!(ArgType::Component.parse(&mut r, &reg).is_ok());
+    let mut r = Reader::new("{text:\"hi\"}");
+    assert!(ArgType::Component.parse(&mut r, &reg).is_err());
+    let mut r = Reader::new("{\"bold\": true}");
+    assert!(ArgType::Style.parse(&mut r, &reg).is_ok());
+    let mut r = Reader::new("{bold: true}");
+    assert!(ArgType::Style.parse(&mut r, &reg).is_err());
+    // The same SNBT spelling fails for Component but parses for NBT.
+    let mut r = Reader::new("{x:1}");
+    assert!(ArgType::Component.parse(&mut r, &reg).is_err());
+    let mut r = Reader::new("{x:1}");
+    assert!(ArgType::NbtTag.parse(&mut r, &reg).is_ok());
+    let mut r = Reader::new("{x:1}");
+    assert!(ArgType::Nbt.parse(&mut r, &reg).is_ok());
+}
+
+#[test]
+fn slot_ranges_name_the_horse_saddle() {
+    // SlotRanges (1.21.4): "horse.saddle"; the bare "saddle" is the 1.21.5 rename.
+    let names: Vec<String> = slot_ranges().into_iter().map(|(n, _)| n).collect();
+    assert!(names.contains(&"horse.saddle".to_owned()));
+    assert!(!names.contains(&"saddle".to_owned()));
+}

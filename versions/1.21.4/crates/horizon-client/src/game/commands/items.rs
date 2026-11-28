@@ -164,7 +164,7 @@ impl Game<'_> {
                     ("armor.legs", "legs"),
                     ("armor.feet", "feet"),
                     ("armor.body", "body"),
-                    ("saddle", "saddle"),
+                    ("horse.saddle", "saddle"),
                 ] {
                     if matches_name(name, n) {
                         add(Slot::Mob(*id, key));

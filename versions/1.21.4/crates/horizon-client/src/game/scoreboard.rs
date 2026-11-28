@@ -979,9 +979,6 @@ impl Env for GameEnv<'_, '_> {
             entity == Target::Player,
         ))
     }
-    fn resolve(&mut self, c: Comp) -> Comp {
-        self.g.resolve_component(c)
-    }
     fn feedback(&mut self, message: Text) {
         self.g.feedback(message);
     }

@@ -11,6 +11,7 @@ horizon-client-core = { path = "../horizon-client-core" }
 horizon-core = { path = "../horizon-core" }
 horizon-protocol = { path = "../horizon-protocol" }
 horizon-world = { path = "../horizon-world" }
+serde_json = { version = "1.0.151" }
 
 [lints]
 workspace = true

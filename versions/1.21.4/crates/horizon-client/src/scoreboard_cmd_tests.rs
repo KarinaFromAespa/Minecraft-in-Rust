@@ -356,3 +356,19 @@ fn selector_options_parse() {
     let parse = vanilla::dispatcher().parse("scoreboard players get @e kills", &reg);
     assert!(parse.executable().is_err());
 }
+
+#[test]
+fn display_names_keep_selectors_unresolved() {
+    // 1.21.4's ScoreboardCommand calls ComponentArgument.getComponent (raw);
+    // resolving selectors at command time is the 1.21.5 getResolvedComponent form.
+    let mut m = mock();
+    run(
+        &mut m,
+        "scoreboard objectives add sel dummy {\"selector\":\"@a\"}",
+    )
+    .unwrap();
+    assert_eq!(
+        m.sb.objective("sel").unwrap().display_name["selector"],
+        "@a"
+    );
+}

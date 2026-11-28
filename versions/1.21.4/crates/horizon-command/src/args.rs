@@ -228,7 +228,7 @@ pub fn slot_ranges() -> Vec<(String, usize)> {
         ("armor.feet", 1),
         ("armor.body", 1),
         ("armor.*", 5),
-        ("saddle", 1),
+        ("horse.saddle", 1),
         ("horse.chest", 1),
         ("player.cursor", 1),
     ] {
@@ -1432,15 +1432,25 @@ impl ArgType {
                 Arg::Str(reader.string[start..reader.cursor].to_owned())
             }
             ArgType::Component | ArgType::Style => {
-                // ParserBasedArgument.withCodec: SNBT, then the codec (errors at the start).
-                let tag = super::snbt::parse_tag_argument(reader)?;
-                let (decoded, key) = if matches!(self, ArgType::Style) {
-                    (
-                        super::component::decode_style(&tag),
-                        "argument.style.invalid",
-                    )
+                // ParserUtils.parseJson (1.21.4): one strict-JSON value, then
+                // the codec (errors at the start). 1.21.5 parses SNBT here
+                // instead (ParserBasedArgument.withCodec).
+                let key = if matches!(self, ArgType::Style) {
+                    "argument.style.invalid"
                 } else {
-                    (super::component::decode(&tag), "argument.component.invalid")
+                    "argument.component.invalid"
+                };
+                let tag = match super::snbt::parse_json_argument(reader) {
+                    Ok(t) => t,
+                    Err(m) => {
+                        reader.cursor = start;
+                        return Err(CommandError::tr_at(key, &[&m], reader));
+                    }
+                };
+                let decoded = if matches!(self, ArgType::Style) {
+                    super::component::decode_style(&tag)
+                } else {
+                    super::component::decode(&tag)
                 };
                 if let Err(m) = decoded {
                     reader.cursor = start;

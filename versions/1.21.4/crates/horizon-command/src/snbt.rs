@@ -947,6 +947,50 @@ pub fn parse_compound_argument(reader: &mut Reader) -> CmdResult<Compound> {
         )),
     }
 }
+/// `ParserUtils.parseJson`: one STRICT JSON value at the reader's cursor
+/// (1.21.4 only; 1.21.5 replaced it with the packrat SNBT grammar, so the
+/// component and style arguments parse SNBT there). The reader advances past
+/// the value; trailing input is left for the next argument. A JSON `null`
+/// anywhere is an error: the codecs reject it and the Tag form has no null.
+pub fn parse_json_argument(reader: &mut Reader) -> Result<Tag, String> {
+    let rest = reader.remaining();
+    let mut stream = serde_json::Deserializer::from_str(rest).into_iter::<serde_json::Value>();
+    let value = match stream.next() {
+        Some(Ok(v)) => v,
+        Some(Err(e)) => return Err(e.to_string()),
+        None => return Err("Expected a JSON value".to_owned()),
+    };
+    reader.cursor += stream.byte_offset();
+    json_to_tag(&value)
+}
+/// Strict JSON-to-Tag, mirroring `horizon_client_core::scoreboard::json_to_tag`
+/// except that `null` is an error instead of an empty string: vanilla's codec
+/// rejects a JSON null where a component or style belongs.
+fn json_to_tag(v: &serde_json::Value) -> Result<Tag, String> {
+    match v {
+        serde_json::Value::Null => Err("null is not a valid value".to_owned()),
+        serde_json::Value::Bool(b) => Ok(Tag::Byte(i8::from(*b))),
+        serde_json::Value::Number(n) => match n.as_i64() {
+            Some(i) => Ok(i32::try_from(i).map_or(Tag::Long(i), Tag::Int)),
+            None => Ok(Tag::Double(n.as_f64().unwrap_or(0.0).to_bits())),
+        },
+        serde_json::Value::String(s) => Ok(Tag::String(s.as_str().into())),
+        serde_json::Value::Array(a) => {
+            let mut out = Vec::with_capacity(a.len());
+            for item in a {
+                out.push(json_to_tag(item)?);
+            }
+            Ok(Tag::List(out))
+        }
+        serde_json::Value::Object(o) => {
+            let mut out = Compound::new();
+            for (k, item) in o {
+                out.insert(k.as_str().into(), json_to_tag(item)?);
+            }
+            Ok(Tag::Compound(out))
+        }
+    }
+}
 /// `TagParser.parseTag`: one value from the whole string, trailing data
 /// is an error (1.21.5 named it `parseFully`).
 pub fn parse_fully(text: &str) -> CmdResult<Tag> {

@@ -41,10 +41,6 @@ pub trait Env {
     fn named(&mut self, name: &str) -> Holder;
     /// The executing entity; `player` is whether it is the player.
     fn source(&mut self) -> Option<(Holder, bool)>;
-    /// `ComponentArgument.getResolvedComponent`: selectors and scores resolved.
-    fn resolve(&mut self, c: Comp) -> Comp {
-        c
-    }
     fn feedback(&mut self, message: Text);
 }
 
@@ -163,14 +159,15 @@ fn int(ctx: &Context, name: &str) -> i32 {
 fn boolean(ctx: &Context, name: &str) -> bool {
     matches!(ctx.get(name), Some(Arg::Bool(true)))
 }
-/// A component argument (kept as JSON text), resolved against the source.
-fn component(ctx: &Context, name: &str, env: &mut dyn Env) -> CmdResult<Comp> {
+/// A component argument (kept as JSON text): 1.21.4's
+/// `ComponentArgument.getComponent` returns the parsed component as-is;
+/// resolving selectors and scores at command time is the 1.21.5
+/// `getResolvedComponent` form.
+fn component(ctx: &Context, name: &str) -> CmdResult<Comp> {
     let Some(Arg::Str(json)) = ctx.get(name) else {
         return Ok(literal(""));
     };
-    let value: Comp =
-        serde_json::from_str(json).map_err(|e| err("argument.component.invalid", &[&e]))?;
-    Ok(env.resolve(value))
+    serde_json::from_str(json).map_err(|e| err("argument.component.invalid", &[&e]))
 }
 fn objective_name(ctx: &Context, env: &dyn Env, name: &str) -> CmdResult<String> {
     let id = string(ctx, name);
@@ -278,7 +275,7 @@ fn scoreboard(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
                 return Err(err("commands.scoreboard.objectives.add.duplicate", &[]));
             }
             let display = if ctx.get("displayName").is_some() {
-                component(ctx, "displayName", env)?
+                component(ctx, "displayName")?
             } else {
                 literal(&name)
             };
@@ -295,7 +292,7 @@ fn scoreboard(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
         }
         "scoreboard.objectives.modify.displayname" => {
             let name = objective_name(ctx, env, "objective")?;
-            let display = component(ctx, "displayName", env)?;
+            let display = component(ctx, "displayName")?;
             let o = env.sb_mut().objective_mut(&name).expect("checked");
             if o.display_name != display {
                 o.display_name = display;
@@ -340,7 +337,7 @@ fn scoreboard(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
         }
         "scoreboard.objectives.modify.numberformat" => {
             let name = objective_name(ctx, env, "objective")?;
-            let format = number_format(ctx, env)?;
+            let format = number_format(ctx)?;
             let set = format.is_some();
             env.sb_mut()
                 .objective_mut(&name)
@@ -410,11 +407,11 @@ fn scoreboard(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
 }
 
 /// `addNumberFormats`: the format the chosen literal denotes (None = clear).
-fn number_format(ctx: &Context, env: &mut dyn Env) -> CmdResult<Option<NumberFormat>> {
+fn number_format(ctx: &Context) -> CmdResult<Option<NumberFormat>> {
     if ctx.has("blank") {
         Ok(Some(NumberFormat::Blank))
     } else if ctx.has("fixed") {
-        Ok(Some(NumberFormat::Fixed(component(ctx, "contents", env)?)))
+        Ok(Some(NumberFormat::Fixed(component(ctx, "contents")?)))
     } else if ctx.has("styled") {
         let Some(Arg::Str(json)) = ctx.get("style") else {
             return Ok(None);
@@ -650,7 +647,7 @@ fn players(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
             let targets = holders(ctx, "targets", env, true)?;
             let objective = objective_name(ctx, env, "objective")?;
             let display = if ctx.get("name").is_some() {
-                Some(component(ctx, "name", env)?)
+                Some(component(ctx, "name")?)
             } else {
                 None
             };
@@ -701,7 +698,7 @@ fn players(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
         "scoreboard.players.display.numberformat" => {
             let targets = holders(ctx, "targets", env, true)?;
             let objective = objective_name(ctx, env, "objective")?;
-            let format = number_format(ctx, env)?;
+            let format = number_format(ctx)?;
             let set = format.is_some();
             let mut tracker = Tracker::default();
             for t in &targets {
@@ -866,7 +863,7 @@ fn team(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
                 return Err(err("commands.team.add.duplicate", &[]));
             }
             let display = if ctx.get("displayName").is_some() {
-                component(ctx, "displayName", env)?
+                component(ctx, "displayName")?
             } else {
                 literal(&name)
             };
@@ -972,7 +969,7 @@ fn team_modify(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
     let last = ctx.literals.last().cloned().unwrap_or_default();
     match id {
         "team.modify.displayname" => {
-            let display = component(ctx, "displayName", env)?;
+            let display = component(ctx, "displayName")?;
             let team = env.sb_mut().team_mut(&name).expect("checked");
             if team.display_name == display {
                 return Err(err("commands.team.option.name.unchanged", &[]));
@@ -1072,7 +1069,7 @@ fn team_modify(id: &str, ctx: &Context, env: &mut dyn Env) -> CmdResult<i32> {
         }
         "team.modify.prefix" | "team.modify.suffix" => {
             let prefix = id.ends_with("prefix");
-            let value = component(ctx, if prefix { "prefix" } else { "suffix" }, env)?;
+            let value = component(ctx, if prefix { "prefix" } else { "suffix" })?;
             let team = env.sb_mut().team_mut(&name).expect("checked");
             if prefix {
                 team.prefix = value.clone();
