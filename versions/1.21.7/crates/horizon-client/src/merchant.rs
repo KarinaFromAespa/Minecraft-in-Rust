@@ -567,6 +567,24 @@ impl Trades {
                 })
                 .collect()
         };
+        // Vanilla 1.21.7 ships no trade data files: the default table is
+        // hardcoded in `VillagerTrades`. Seed whatever the data-driven load
+        // (plus pack overlay) did not provide, so a datapack that ships a
+        // trade set or trade still wins over the hardcoded entry.
+        for (id, json) in crate::merchant_hardcoded::HARDCODED_SETS {
+            if !sets.contains_key(*id)
+                && let Ok(v) = serde_json::from_str(json)
+            {
+                sets.insert((*id).to_owned(), v);
+            }
+        }
+        for (id, json) in crate::merchant_hardcoded::HARDCODED_TRADES {
+            if !trades.contains_key(*id)
+                && let Ok(v) = serde_json::from_str(json)
+            {
+                trades.insert((*id).to_owned(), v);
+            }
+        }
         Self {
             trades,
             tags: expand_all(&raw),
@@ -952,6 +970,25 @@ impl Trades {
                 stack.with_potion(m["id"].as_str().unwrap_or("minecraft:water")),
                 0,
             )),
+            "minecraft:set_name" => {
+                // `SetNameFunction`: the treasure-map trades name the map
+                // (`filled_map.*`) via the `item_name` component; a missing
+                // name leaves the stack unchanged.
+                if m["name"].is_null() {
+                    return Some((stack, 0));
+                }
+                let mut out = stack;
+                if m["target"].as_str() == Some("item_name") {
+                    out.data_mut().set_other(
+                        "minecraft:item_name",
+                        Some(horizon_client_core::scoreboard::json_to_tag(&m["name"])),
+                    );
+                } else {
+                    out.data_mut()
+                        .set_loot_name("minecraft:custom_name", &m["name"]);
+                }
+                Some((out, 0))
+            }
             "minecraft:discard" => None,
             "minecraft:set_random_dyes" => {
                 let rolls = int_provider(&m["number_of_dyes"], random);
