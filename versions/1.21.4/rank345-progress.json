@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 104,
-  "note": "Batch 104 (2026-11-28, rank 3 G4: report ids 467, 468, 469, 470, 471, 472, 474, 478): eight carry-overs, no code changes; G4 long-tail verification sweep continues.",
+  "batch": 105,
+  "note": "Batch 105 (2026-11-28, rank 3 G4: report ids 479, 481, 484, 485, 486, 487, 488, 489): eight carry-overs, no code changes; G4 long-tail verification sweep continues.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -548,6 +548,46 @@
       "module": "widely named: client/gui/components/events",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): ContainerEventHandler 2m \u2014 mouseReleased drops its getChildAt fallback in 1.21.5: 1.21.4 returns the focused listener's result OR whether a child sits at the release position (getChildAt + filter + isPresent); 1.21.5 returns only the focused listener's result (the mouseReleased$0 filter lambda is gone, hence the lambda renumbering). The Rust does not implement the ContainerEventHandler dispatch: its releases are per-screen (inventory_mouse_release via container_screen::Release/Target in inventory_input.rs) with no child-at-position fallback, and none of the five heuristically-mapped files (gamepad.rs, key_focus.rs, pad_menu.rs, trading.rs, screen_narrator.rs) implements mouseReleased."
+    },
+    "479": {
+      "module": "widely named: client/gui/screens/inventory",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): AnvilScreen 1m + BookViewScreen 1m. AnvilScreen.renderLabels: player.getAbilities().instabuild -> player.hasInfiniteMaterials(), which is a pure extraction (Player.hasInfiniteMaterials returns abilities.instabuild in 1.21.5); the creative gate on the repair-cost display is identical, and the Rust gates the anvil result on self.creative (stations.rs:1067). BookViewScreen: the ctor/setBookAccess/setPage/getNumPages/render diffs are field-access renumbering noise; the real change is handleComponentClicked, which moves from ClickEvent.getAction() == CHANGE_PAGE + getValue() + Integer.parseInt to instanceof ClickEvent$ChangePage + cast (the 1.21.5 ClickEvent refactor, same as batch 101 item 380). The Rust parses the 1.21.4 {action, value} form into ClickEvent::ChangePage(target) (component.rs:271) and books.rs turns to (target - 1) clamped \u2014 the same page."
+    },
+    "481": {
+      "module": "crates/horizon-client-input/src/gamepad.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): ScreenRectangle 1m \u2014 transformAxisAligned changes only MatrixUtil.isIdentity(Matrix4f) -> isIdentity(Matrix4fc) (the read-only matrix interface), no behaviour change. The Rust does not implement transformAxisAligned; gamepad.rs mentions ScreenRectangle only in a comment about inclusive edges."
+    },
+    "484": {
+      "module": "crates/horizon-client/src/game/advancements_screen.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): AdvancementTab 1m \u2014 drawContents maps DisplayInfo.getBackground() through ClientAsset.texturePath() before orElse in 1.21.5, where 1.21.4's getBackground() returns Optional<ResourceLocation> directly. The background is now a ClientAsset wrapper; the texture path resolved is the same ResourceLocation. The Rust reads d.background as a plain ResourceLocation string (advancements_screen.rs:396, stripping the minecraft: prefix) \u2014 the 1.21.4 form."
+    },
+    "485": {
+      "module": "crates/horizon-client/src/game/bossbars.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): BossBarCommands 1m \u2014 two /bossbar lambdas (add/set name) change ComponentArgument.getComponent(ctx, name) -> getResolvedComponent(ctx, name). In 1.21.4 getComponent is a thin wrapper over getResolvedComponent(ctx, name, source entity); 1.21.5 inlines the entity lookup. Identical resolution (raw component + ComponentUtils.updateForEntity with the source). The Rust's component_json (bossbars.rs:417) parses the JSON component and resolves it via resolve_component \u2014 the same behaviour in both versions."
+    },
+    "486": {
+      "module": "crates/horizon-client/src/game/commands/misc.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): TeamMsgCommand 1m \u2014 the static init builds the team-message hover/click with the 1.21.5 record constructors (new HoverEvent$ShowText(...) instead of new HoverEvent(Action.SHOW_TEXT, ...); new ClickEvent$SuggestCommand(...) instead of new ClickEvent(Action.SUGGEST_COMMAND, ...)). Same JSON form as 1.21.4 (batch 101's HoverEvent/ClickEvent work). The Rust's cmd_teammsg builds the same style (hover show_text 'chat.type.team.hover', click SuggestCommand '/teammsg ') via text::Style."
+    },
+    "487": {
+      "module": "crates/horizon-client/src/game/commands/world_cmds.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): ResourceKeyArgument 1m \u2014 getRegistryKey changes visibility private static -> public static, body identical. The Rust resolves its arguments with its own code (world_cmds.rs cites ResourceKeyArgument.getRecipe only in a comment); no call site to update."
+    },
+    "488": {
+      "module": "crates/horizon-client/src/game/item_particles.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): BreakingItemParticle$ItemParticleProvider 1m \u2014 calculateState drops the boolean argument to ItemModelResolver.updateForTopItem: in 1.21.4 the boolean sets ItemStackRenderState.isLeftHand (calculateState passed false), in 1.21.5 the parameter is gone and the state defaults to false. Same resulting state. The Rust implements ItemParticleProvider.getSprite (resolving the stack's model for the ground and picking a layer's particle sprite), not calculateState."
+    },
+    "489": {
+      "module": "crates/horizon-client/src/game/lan_screen.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): PopupScreen 1m \u2014 renderBackground replaces RenderSystem.clear(256) (clear depth) with the 1.21.5 GPU-device command-encoder depth clear (getDevice().createCommandEncoder() + the main target's depth texture). Same visual effect: the depth buffer is cleared before the popup background draws. The Rust's Popup (lan_screen.rs:416) is a layout struct (title/message/buttons/frame); its background dim is drawn by the generic screen-background code, and the renderer owns clears \u2014 no popup-specific change."
     }
   }
 }

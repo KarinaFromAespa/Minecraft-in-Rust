@@ -7092,3 +7092,31 @@ shape for the review batches.
   name. 478 (gui components/events): ContainerEventHandler.mouseReleased
   drops its getChildAt fallback in 1.21.5; the Rust has no such
   dispatch -- its releases are per-screen.
+
+Batch 105 (2026-11-28, rank 3 G4: report ids 479, 481, 484, 485, 486, 487,
+488, 489): eight carry-overs, no code changes. 479 (screens/inventory):
+AnvilScreen renderLabels swaps getAbilities().instabuild for the new
+hasInfiniteMaterials() helper, which returns exactly abilities.instabuild
+-- same creative gate; the Rust gates the anvil result on self.creative.
+BookViewScreen's real change is handleComponentClicked moving to the
+1.21.5 ClickEvent$ChangePage record; the Rust already parses the 1.21.4
+{action, value} form into ClickEvent::ChangePage. 481 (gamepad.rs):
+ScreenRectangle.transformAxisAligned changes MatrixUtil.isIdentity
+(Matrix4f) to (Matrix4fc) -- read-only interface, no behaviour change.
+484 (advancements_screen.rs): drawContents maps the tab background
+through ClientAsset.texturePath(); the 1.21.4 form is a plain
+ResourceLocation, which is what the Rust reads. 485 (bossbars.rs):
+/bossbar add/set name calls getResolvedComponent instead of getComponent,
+which in 1.21.4 is a thin wrapper over it -- identical resolution; the
+Rust resolves via component_json + resolve_component. 486 (misc.rs):
+TeamMsgCommand's static init uses the 1.21.5 HoverEvent$ShowText /
+ClickEvent$SuggestCommand record constructors; same JSON form as 1.21.4,
+which the Rust builds via text::Style. 487 (world_cmds.rs):
+ResourceKeyArgument.getRegistryKey goes private -> public, body
+identical. 488 (item_particles.rs): calculateState drops the boolean
+argument to updateForTopItem -- in 1.21.4 it set isLeftHand, and
+calculateState passed false, the same value the 1.21.5 default yields;
+the Rust implements getSprite, not calculateState. 489 (lan_screen.rs):
+PopupScreen.renderBackground swaps RenderSystem.clear(256) for the GPU
+command-encoder depth clear -- same visual effect, render plumbing.
+Rank 3 after batch 105: 13 accepted + 113 closed = 126/149; total 473/548.
