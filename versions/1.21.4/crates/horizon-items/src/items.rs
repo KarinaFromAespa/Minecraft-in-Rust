@@ -711,6 +711,16 @@ pub fn villager_food(item: &str) -> Option<i32> {
     food.as_ref().and_then(|f| f.get(item).copied())
 }
 
+/// Melee-hit durability for a 1.21.4 item with no `minecraft:weapon`
+/// component (the component arrives in 1.21.5): swords, the mace and the
+/// trident lose 1 durability per hit through their own `postHurtEnemy`
+/// overrides (`hurtAndBreak(1, attacker, MAINHAND)`), while axes have no
+/// such override and take none on a hit.
+fn weapon_damage_1214(name: &str) -> Option<u32> {
+    (name.ends_with("_sword") || name == "minecraft:mace" || name == "minecraft:trident")
+        .then_some(1)
+}
+
 impl Items {
     pub fn resists_fire(&self, stack: &ItemStack, source: &str) -> bool {
         if let Some(data) = stack.data()
@@ -997,11 +1007,14 @@ impl Items {
                     disable_blocking_seconds: c["minecraft:weapon"]["disable_blocking_for_seconds"]
                         .as_f64()
                         .unwrap_or(0.0) as f32,
-                    weapon_damage: c["minecraft:weapon"].is_object().then(|| {
-                        c["minecraft:weapon"]["item_damage_per_attack"]
-                            .as_u64()
-                            .unwrap_or(1) as u32
-                    }),
+                    weapon_damage: c["minecraft:weapon"]
+                        .is_object()
+                        .then(|| {
+                            c["minecraft:weapon"]["item_damage_per_attack"]
+                                .as_u64()
+                                .unwrap_or(1) as u32
+                        })
+                        .or_else(|| weapon_damage_1214(name)),
                     equip_asset: c["minecraft:equippable"]["asset_id"]
                         .as_str()
                         .map(str::to_owned),
@@ -3204,6 +3217,22 @@ mod tests {
             b.disabled_sound.as_deref(),
             Some("minecraft:item.shield.break")
         );
+    }
+
+    #[test]
+    fn weapon_damage_1214_covers_the_post_hurt_enemy_set() {
+        // Swords, the mace and the trident lose 1 per melee hit in 1.21.4.
+        assert_eq!(
+            super::weapon_damage_1214("minecraft:diamond_sword"),
+            Some(1)
+        );
+        assert_eq!(super::weapon_damage_1214("minecraft:wooden_sword"), Some(1));
+        assert_eq!(super::weapon_damage_1214("minecraft:mace"), Some(1));
+        assert_eq!(super::weapon_damage_1214("minecraft:trident"), Some(1));
+        // Axes have no `postHurtEnemy` override in 1.21.4: no hit wear.
+        assert_eq!(super::weapon_damage_1214("minecraft:diamond_axe"), None);
+        assert_eq!(super::weapon_damage_1214("minecraft:diamond_pickaxe"), None);
+        assert_eq!(super::weapon_damage_1214("minecraft:stick"), None);
     }
 
     #[test]

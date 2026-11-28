@@ -937,9 +937,17 @@ impl Goal for LongJump {
                 && (m.species() == Species::Goat || !m.fluids.in_water)
                 && self.in_air.is_some_and(|t| t <= MID_JUMP_DURATION);
         }
+        // LongJumpToRandomPos.canStillUse: 1.21.4 asks isInWaterOrBubble — a
+        // bubble column stops the search too. 1.21.5 narrowed it to isInWater.
+        let (x, y, z) = (
+            m.position.x.floor() as i32,
+            m.position.y.floor() as i32,
+            m.position.z.floor() as i32,
+        );
         let valid = self.initial == Some(m.position)
             && self.tries > 0
             && !m.fluids.in_water
+            && cx.w.block_name(x, y, z) != "minecraft:bubble_column"
             && !(self.chosen.is_none() && self.candidates.is_empty());
         if !valid {
             sample_cooldown(m, cx.lr, 2);

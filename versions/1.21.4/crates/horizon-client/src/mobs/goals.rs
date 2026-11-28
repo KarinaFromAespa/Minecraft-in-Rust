@@ -1111,7 +1111,16 @@ impl Goal for Stroll {
             _ if self.position.is_some() => self.position.and_then(|pick| pick(m, cx)),
             Some(_) if self.parrot => super::parrot::wander_pos(m, cx.w),
             Some(prob) => {
-                if m.fluids.in_water {
+                // 1.21.4 asks `isInWaterOrBubble()` here (1.21.5 narrowed it
+                // to `isInWater()`): a mob standing in a bubble column also
+                // picks a land position.
+                let in_water_or_bubble = m.fluids.in_water
+                    || cx.w.block_name(
+                        m.position.x.floor() as i32,
+                        m.position.y.floor() as i32,
+                        m.position.z.floor() as i32,
+                    ) == "minecraft:bubble_column";
+                if in_water_or_bubble {
                     m.land_random_pos(cx.w, 15, 7)
                         .or_else(|| m.default_random_pos(cx.w, 10, 7))
                 } else if m.random.next_float() >= prob {
@@ -2582,8 +2591,10 @@ impl Goal for EatBlock {
             m.position.z.floor() as i32,
         );
         let here = cx.w.block_name(x, y, z).to_owned();
-        cx.w.has_tag("minecraft:edible_for_sheep", &here)
-            || cx.w.block_name(x, y - 1, z) == "minecraft:grass_block"
+        // 1.21.4's predicate is `IS_TALL_GRASS` (short grass only); the
+        // `minecraft:edible_for_sheep` tag is a 1.21.5 addition and does not
+        // exist in 1.21.4, so the tag check could never fire here.
+        here == "minecraft:short_grass" || cx.w.block_name(x, y - 1, z) == "minecraft:grass_block"
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
         self.tick = reduced(40);
@@ -2616,7 +2627,9 @@ impl Goal for EatBlock {
             // EatBlockGoal.tick: both halves of the world change sit behind
             // MOB_GRIEFING (`ifeq 89`, `ifeq 182` in the bytecode); `Mob.ate`
             // runs either way, so a sheep still sheds its wool and ages up.
-            if cx.w.has_tag("minecraft:edible_for_sheep", &here) {
+            // 1.21.4's predicate is `IS_TALL_GRASS` (short grass only); the
+            // `minecraft:edible_for_sheep` tag is a 1.21.5 addition.
+            if here == "minecraft:short_grass" {
                 if cx.w.mob_griefing {
                     cx.events.push(MobEvent::BreakBlock {
                         pos: [x, y, z],

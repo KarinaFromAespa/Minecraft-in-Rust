@@ -6452,3 +6452,45 @@ shape for the review batches.
   only); save/load is a codec-vs-save reshape with identical NBT and the
   same default-item fallback; EndPortalFrameBlock shapes are
   value-identical (BASE + EYE boxes, 1.21.5 rebuilds them via `Block.column`).
+
+  Batch 85 (2026-11-28, rank 3 G1: report ids 370, 371, 373, 375). Rank 3
+  now 21/149 (13 accepted + 8 closed); total 381/548. 370 PORTED (frog):
+  `LongJumpToRandomPos.canStillUse` asks `isInWaterOrBubble()` in 1.21.4,
+  narrowed to `isInWater()` in 1.21.5 — a frog (or goat, same shared goal)
+  standing in a bubble column also stops the search. `can_continue` now
+  requires the feet block not be a bubble column. Everything else in 370
+  is carry-over (PossibleJump Record-vs-subclass, pickCandidate arity,
+  playSound signatures, FrogAi no-diff). 371 PORTED (item_use): the
+  `minecraft:weapon` component does not exist in 1.21.4 (it arrives in
+  1.21.5), so the Rust's `weapon_damage` was None for every item and
+  `weapon_wear` never fired — no melee weapon ever lost durability on a
+  hit. In 1.21.4 the durability comes from each item's own
+  `postHurtEnemy` override: SwordItem, MaceItem and TridentItem all do
+  `hurtAndBreak(1, attacker, MAINHAND)`; AxeItem has no such override, so
+  axes take no hit wear. New `weapon_damage_1214(name)` fallback in
+  items.rs (same idiom as the shield_1214 BlocksAttacks fallback):
+  Some(1) for `*_sword`, `minecraft:mace` and `minecraft:trident`, with a
+  unit test pinning the set. Trident `releaseUsing` verified carry-over
+  (1.21.4 throw: hurtWithoutBreaking, spawn at 2.5 with the damaged
+  stack, CREATIVE_ONLY pickup in creative else `removeItem`; 1.21.5's
+  `consumeAndReturn(1)` is the same observable behaviour); ItemInHandRenderer
+  verified carry-over (`renderItem`'s boolean leftHand parameter dropped
+  in 1.21.5, `mulPose` widened Quaternionf->Quaternionfc, no transform
+  changes). 373 PORTED (goals): sheep eat short grass, not the 1.21.5
+  `edible_for_sheep` tag — the tag does not exist in any 1.21.4 jar, so
+  the Rust's two tag checks in EatBlock could never fire and sheep never
+  ate tufts; both are now `here == "minecraft:short_grass"`. The
+  water-avoiding stroll also takes the land position in a bubble column
+  (1.21.4 `isInWaterOrBubble`, 1.21.5 `isInWater`). FleeSun/RestrictSun
+  verified carry-over (`isDay` vs `isBrightOutside` are byte-identical)
+  and MeleeAttackGoal verified carry-over (spectator check order is
+  equivalent). NOTE: the eat-goal tests pass vacuously on CI when
+  prepared resources are missing — CI green does not prove the tufts
+  half. 375 CARRY-OVER (redstone): pressure-plate shapes are
+  value-identical (1.21.4 `Block.box`, 1.21.5 rebuilds them via
+  `Block.column`: PRESSED box(1,0,1,15,0.5,15), unpressed box(1,0,1,15,1,15),
+  TOUCH_AABB (0.0625,0,0.0625,0.9375,0.25,0.9375)); `checkPressed` unchanged;
+  entityInside/onRemove/playSound diffs are API-only. The Rust's
+  `plate_check_pressed` is called from the entity-inside hook and the
+  scheduled tick, matching vanilla. CopperBulb `checkAndFlip` differs
+  only by the playSound signature.
