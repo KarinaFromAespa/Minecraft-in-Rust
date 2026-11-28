@@ -6861,3 +6861,48 @@ shape for the review batches.
   switch -- the 1.21.4 per-instance model, with an explicit comment in
   advancements.rs. The sites that ignore the sound are test helpers and
   controller_notice (a controller notice, not a toast).
+
+  Batch 97 (2026-11-28, rank 3 G3: report ids 389, 422, 423, 430). Rank 3 now
+  64/149 (13 accepted + 51 closed); total 424/548. All four CARRY-OVER,
+  no code change -- every diff is the 1.21.5 NBT accessor modernization
+  with identical bytes and values. 389 (ruined_portal.rs):
+  RuinedPortalPiece.makeSettings / constructor read Mirror/Rotation via
+  getString + valueOf and VerticalPlacement via getString + byName in
+  1.21.4, via CompoundTag.read(name, LEGACY_CODEC/CODEC).orElseThrow()
+  in 1.21.5; addAdditionalSaveData writes them via putString(name) vs
+  store(name, LEGACY_CODEC/CODEC); Properties parses via
+  Codec.parse(Dynamic(NbtOps, tag)) vs read(name, CODEC) (codec field
+  names jar-verified: cold, mossiness, air_pocket, overgrown, vines,
+  replace_with_blackstone). VerticalPlacement$values only widens the
+  CODEC field type; byName exists only in 1.21.4. lambda$postProcess$2
+  (1.21.4) == lambda$postProcess$1 (1.21.5), same body; the 1.21.4-only
+  lambdas are dead logger tails after areturn. The Rust reads
+  Rotation/Mirror/VerticalPlacement by saved_name() match
+  (saved_templates.rs) and writes Tag::String(saved_name()) + the
+  Properties compound (simple.rs, PortalProps::save) -- the 1.21.4 string
+  forms. 422 (monument.rs): spawnElder differs only by
+  ElderGuardian.moveTo (1.21.4) vs snapTo (1.21.5), same arguments
+  (x + 0.5, y, z + 0.5, yaw 0, pitch 0). The Rust's elder() spawns via
+  legacy::spawn_nbt with Pos [x + 0.5, y, z + 0.5], Rotation [0, 0] and
+  PersistenceRequired -- the same placement, without calling either
+  name. 423 (stronghold.rs): EntryDoor via putString(name) vs
+  store(LEGACY_CODEC) (same name string); the nine subclasses read
+  their flags via getBoolean/getInt vs getBooleanOr(name, false)/
+  getIntOr(name, 0) with identical defaults; SmallDoorType only gains
+  the LEGACY_CODEC field. The Rust's save() writes EntryDoor as
+  Tag::String of the enum name, flags as Byte, Steps/Type as Int -- the
+  1.21.4 forms. 430 (mineshaft.rs): Entrances encodeStart vs store
+  (same int-array list bytes), load getList + parse vs read().orElse
+  (empty) with the same result; Crossing D putInt(get2DDataValue()) vs
+  store(LEGACY_ID_CODEC_2D), load getInt + from2DDataValue (wraps mod 4,
+  jar-verified identical in both versions) vs read().orElse(SOUTH) --
+  same direction for every int; tf/hr/sc/hps/Num/MST getBoolean/getInt
+  vs getBooleanOr/getIntOr with identical defaults. The Rust's save()
+  writes MST as Int, Entrances as a list of 6-int arrays, flags as
+  Byte, Num as Int, D as Byte(data_2d) -- the 1.21.4 values. No loader
+  exists for stronghold or mineshaft pieces (generator_structures.rs:
+  only jigsaw pieces load from saved starts), so the load-form diffs
+  have no Rust code. Pre-existing note, not fixed: the Rust writes D
+  as a Byte where vanilla writes an Int; both versions' readers accept
+  any numeric tag, so a Rust-written piece loads identically in either
+  vanilla version.

@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 96,
-  "note": "Batch 96 (2026-11-28, rank 3 G2: report ids 390, 400, 412, 421): 390 PORT (on owner is player-only in 1.21.4), 421 PORT (argument-type registry is 54 entries, no resource_selector), 400 + 412 CARRY-OVER (no semantic diff). Rank 3 now 60/149 (13 accepted + 47 closed); total 420/548.",
+  "batch": 97,
+  "note": "Batch 97 (2026-11-28, rank 3 G3: report ids 389, 422, 423, 430): all four CARRY-OVER -- the 1.21.5 NBT accessor modernization (getBoolean/getInt -> getBooleanOr/getIntOr, putString -> store(LEGACY_CODEC), encodeStart -> store) with identical bytes and values; spawnElder is moveTo -> snapTo with the same args. Rank 3 now 64/149 (13 accepted + 51 closed); total 424/548.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -323,6 +323,26 @@
       "module": "crates/horizon-protocol/src/packets/play/commands.rs",
       "verdict": "closed",
       "evidence": "PORT (batch 96, jar-verified 2026-11-28): ArgumentTypeInfos.bootstrap -- 1.21.4 registers 54 parsers on the wire from a real server: the 1.21.5 list minus resource_selector (new in 1.21.5), plus test_argument + test_class which register only in the IDE and never reach the wire. The Rust ARGUMENT_TYPES was the 55-entry 1.21.5 list, so every parser id after resource_key was off by one against a 1.21.4 server (template_mirror decoded as resource_selector, etc.); it now has the 54-entry 1.21.4 list with uuid at 53, matching adapter/v26_2_ids.rs (54 pinned) and COMMAND_ARGUMENT_TYPE_DOWN (53 -> 56). The resource_selector decode arms stay as dead code (batch 93 pattern); test_argument/test_class are NOT added to the table. Pinned by every_argument_type_decodes and the layout_26_2 uuid test, which now takes the Some arm (down(53) = 56)."
+    },
+    "389": {
+      "module": "crates/horizon-world/src/worldgen/structure/ruined_portal.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 97, jar-verified 2026-11-28): RuinedPortalPiece -- every diff is the 1.21.5 NBT accessor modernization with identical bytes: makeSettings/constructor read Mirror/Rotation via getString + valueOf and VerticalPlacement via getString + byName in 1.21.4, via CompoundTag.read(name, LEGACY_CODEC/CODEC).orElseThrow() in 1.21.5; addAdditionalSaveData writes them via putString(name) in 1.21.4, via store(name, LEGACY_CODEC/CODEC) in 1.21.5; Properties parses via Codec.parse(Dynamic(NbtOps, tag)) in 1.21.4, via read(name, CODEC) in 1.21.5 (codec field names jar-verified: cold, mossiness, air_pocket, overgrown, vines, replace_with_blackstone). VerticalPlacement$values only widens the CODEC field type (EnumCodec -> Codec); byName exists only in 1.21.4. Setup's codec diff is the same field-type widening. lambda$postProcess$2 (1.21.4) == lambda$postProcess$1 (1.21.5), same body (vines -> maybeAddVines, overgrown -> maybeAddLeavesAbove); the 1.21.4-only lambdas are dead logger tails after areturn. The Rust reads Rotation/Mirror/VerticalPlacement by saved_name() match (saved_templates.rs) and writes Tag::String(saved_name()) + the Properties compound (simple.rs, PortalProps::save) -- the 1.21.4 string forms. No code change."
+    },
+    "422": {
+      "module": "crates/horizon-world/src/worldgen/structure/monument.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 97, jar-verified 2026-11-28): OceanMonumentPieces$OceanMonumentPiece.spawnElder -- the only diff is ElderGuardian.moveTo (1.21.4) vs snapTo (1.21.5), same arguments (x + 0.5, y, z + 0.5, yaw 0, pitch 0); everything else (getWorldPos, isInside, heal(getMaxHealth), finalizeSpawn, addFreshEntityWithPassengers) is identical. The Rust's elder() spawns via legacy::spawn_nbt with Pos [x + 0.5, y, z + 0.5], Rotation [0, 0] and PersistenceRequired -- the same placement, without calling either name. No code change."
+    },
+    "423": {
+      "module": "crates/horizon-world/src/worldgen/structure/stronghold.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 97, jar-verified 2026-11-28): StrongholdPieces -- every diff is the 1.21.5 NBT accessor modernization: StrongholdPiece writes EntryDoor via putString(SmallDoorType.name()) in 1.21.4, via store(LEGACY_CODEC) in 1.21.5 (LEGACY_CODEC encodes the enum name, same bytes); the constructor reads it via getString + valueOf vs read(LEGACY_CODEC).orElseThrow(). The nine subclasses read their flags via getBoolean/getInt in 1.21.4, via getBooleanOr(name, false)/getIntOr(name, 0) in 1.21.5 -- identical defaults (Chest, Steps, leftLow/leftHigh/rightLow/rightHigh, Tall, Mob, Type, Source, Left/Right). SmallDoorType only gains the LEGACY_CODEC field in 1.21.5. The Rust's save() writes EntryDoor as Tag::String of the enum name, flags as Byte, Steps/Type as Int -- the 1.21.4 forms. No loader exists for stronghold pieces (generator_structures.rs: only jigsaw pieces load from saved starts), so the load-form diffs have no Rust code. No code change."
+    },
+    "430": {
+      "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 97, jar-verified 2026-11-28): MineshaftPieces -- every diff is the 1.21.5 NBT accessor modernization: Room's Entrances encode via BoundingBox.CODEC.listOf().encodeStart(NbtOps) in 1.21.4, via store(name, CODEC.listOf()) in 1.21.5 (same int-array list bytes); load via getList + parse + ifPresent addAll vs read().orElse(empty) + addAll (same result, incl. missing tag). Crossing's D writes putInt(get2DDataValue()) vs store(LEGACY_ID_CODEC_2D) and reads getInt + from2DDataValue (wraps mod 4, jar-verified identical in both versions) vs read().orElse(SOUTH) -- same direction for every int, missing tag included. tf/hr/sc/hps/Num/MST read getBoolean/getInt vs getBooleanOr(false)/getIntOr(0) with identical defaults. createRandomShaftPiece's 1.21.4-only tail is a dead logger init after areturn. The Rust's save() writes MST as Int, Entrances as a list of 6-int arrays, flags as Byte, Num as Int, D as Byte(data_2d) -- the 1.21.4 values. No loader exists for mineshaft pieces (generator_structures.rs: only jigsaw pieces load from saved starts), so the load-form diffs have no Rust code. No code change. Pre-existing note, not fixed: the Rust writes D as a Byte where vanilla writes an Int; both versions' readers accept any numeric tag, so a Rust-written piece loads identically in either vanilla version."
     }
   }
 }
