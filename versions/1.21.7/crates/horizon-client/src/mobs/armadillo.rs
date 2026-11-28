@@ -893,7 +893,9 @@ mod panic_environmental_tests {
     use super::*;
 
     /// `#panic_environmental_causes` from the vanilla data: every type in it
-    /// panics the armadillo (`Armadillo.actuallyHurt` rolls out).
+    /// panics the armadillo (`Armadillo.actuallyHurt` rolls out). 1.21.7's
+    /// tag has seven entries; `minecraft:sulfur_cube_hot` is a later
+    /// version's eighth.
     #[test]
     fn the_environmental_causes_are_vanillas_tag() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -919,7 +921,6 @@ mod panic_environmental_tests {
             ("minecraft:lava", DamageKind::Lava),
             ("minecraft:lightning_bolt", DamageKind::LightningBolt),
             ("minecraft:on_fire", DamageKind::OnFire),
-            ("minecraft:sulfur_cube_hot", DamageKind::SulfurCubeHot),
         ];
         assert_eq!(ids, kinds.map(|(id, _)| id).to_vec());
         for (id, kind) in kinds {

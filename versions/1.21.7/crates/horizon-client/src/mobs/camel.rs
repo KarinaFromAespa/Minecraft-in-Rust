@@ -489,7 +489,7 @@ mod tests {
     #[test]
     fn the_second_passenger_sits_behind() {
         with_test_world(&[], |_, types| {
-            let kind = std::sync::Arc::new(types.types["minecraft:camel_husk"].clone());
+            let kind = std::sync::Arc::new(types.types["minecraft:camel"].clone());
             let m = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
             assert_eq!(passenger_attachment_at(&m, 0, 2, false)[2], 0.5);
             assert!((passenger_attachment_at(&m, 1, 2, false)[2] + 0.7).abs() < 1e-6);

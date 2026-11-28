@@ -54,9 +54,13 @@ fn datapack_damage_initial_snapshot_uses_the_prepared_worlds_features() {
     let pack = world.join("datapacks/feature_damage");
     let _ = fs::remove_dir_all(&world);
     fs::create_dir_all(pack.join("data/demo/damage_type")).unwrap();
+    // Discovery (`folder_metadata_present`) requires a `pack` section with
+    // a description, as vanilla's own `trade_rebalance/pack.mcmeta` has
+    // (`features` plus `pack`, `pack_format` 81): without it the folder is
+    // skipped and `demo:heat` never loads.
     fs::write(
         pack.join("pack.mcmeta"),
-        r#"{"features":{"enabled":["minecraft:trade_rebalance"]}}"#,
+        r#"{"features":{"enabled":["minecraft:trade_rebalance"]},"pack":{"pack_format":81,"description":"feature damage test"}}"#,
     )
     .unwrap();
     fs::write(

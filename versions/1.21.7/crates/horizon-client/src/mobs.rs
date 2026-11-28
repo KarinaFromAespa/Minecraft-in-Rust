@@ -6195,14 +6195,10 @@ mod effect_refusal_tests {
             refused("minecraft:magma_cube", "minecraft:oozing"),
             (true, 1)
         );
-        // Spider.canBeAffected and CaveSpider's inheritance: poison is refused, and a
-        // nautilus refuses it too (AbstractNautilus.canBeAffected), the zombie one
-        // through the same override, an ordinary mob not at all.
-        for spider in [
-            "minecraft:spider",
-            "minecraft:cave_spider",
-            "minecraft:nautilus",
-        ] {
+        // Spider.canBeAffected and CaveSpider's inheritance: poison is refused, an
+        // ordinary mob not at all. (A nautilus refuses it too in later versions —
+        // `AbstractNautilus.canBeAffected` — but 1.21.7 has no nautilus at all.)
+        for spider in ["minecraft:spider", "minecraft:cave_spider"] {
             assert_eq!(refused(spider, "minecraft:poison"), (false, 0), "{spider}");
         }
         assert_eq!(refused("minecraft:cow", "minecraft:poison"), (true, 1));
@@ -6230,15 +6226,8 @@ mod effect_refusal_tests {
             (true, 1)
         );
         assert_eq!(refused("minecraft:zombie", "minecraft:wither"), (true, 1));
-        // Parched.canBeAffected: weakness only, slowness takes.
-        assert_eq!(
-            refused("minecraft:parched", "minecraft:weakness"),
-            (false, 0)
-        );
-        assert_eq!(
-            refused("minecraft:parched", "minecraft:slowness"),
-            (true, 1)
-        );
+        // No `minecraft:parched` in 1.21.7: the mob (and its `canBeAffected`,
+        // which refuses weakness only) arrives in a later version.
     }
 
     fn check_squid_damage_result(id: &str) {
