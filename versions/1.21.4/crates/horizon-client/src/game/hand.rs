@@ -938,9 +938,12 @@ impl HandWorld for GameHands<'_, '_> {
         if self.is_air(pos) {
             return false;
         }
-        // 1.21.4 has no `Item.canDestroyBlock`: a creative player destroys
-        // any block, even with a sword, trident or mace. The 1.21.5-only
-        // `can_destroy_blocks_in_creative` gate was removed with item 119.
+        // 1.21.4 has no `Item.canDestroyBlock` (a 1.21.5 `Tool` field): the
+        // 1.21.5-only `can_destroy_blocks_in_creative` gate was removed with
+        // item 119. But 1.21.4's `Item.canAttackBlock` — overridden by the
+        // mace, sword and trident to `!isCreative()` — still refuses a
+        // creative destroy with one of those held; `break_block_as_player`
+        // enforces it.
         let state = self.game.world.block(pos[0], pos[1], pos[2]);
         self.game.tutorial_destroy(state, 1.0);
         let r = self.game.break_block(pos);

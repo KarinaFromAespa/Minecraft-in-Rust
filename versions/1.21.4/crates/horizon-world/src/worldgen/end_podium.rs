@@ -7,7 +7,6 @@ use super::{
     placement::{PlacementContext, PlacementQueryError},
 };
 use crate::registry::BlockStateId;
-use std::{collections::BTreeSet, sync::Arc};
 #[derive(Clone, Debug)]
 pub struct EndPodiumFeature {
     active: bool,
@@ -16,7 +15,6 @@ pub struct EndPodiumFeature {
     end_stone: BlockStateId,
     portal: BlockStateId,
     torches: [BlockStateId; 4],
-    same_blocks: [Arc<BTreeSet<BlockStateId>>; 3],
 }
 #[derive(Debug)]
 pub enum EndPodiumError<E> {
@@ -57,19 +55,6 @@ impl EndPodiumFeature {
                 .map_err(|e| DecodeError::Registry(e.to_string()))
         });
         let [north, east, south, west] = torches;
-        let same_blocks = [
-            "minecraft:end_stone",
-            "minecraft:air",
-            "minecraft:end_portal",
-        ]
-        .map(|name| {
-            bindings
-                .blocks
-                .get(name)
-                .cloned()
-                .ok_or_else(|| DecodeError::Registry(format!("unknown podium block {name}")))
-        });
-        let [end_stone, air, portal] = same_blocks;
         Ok(Self {
             active,
             bedrock: get("minecraft:bedrock")?,
@@ -77,7 +62,6 @@ impl EndPodiumFeature {
             end_stone: get("minecraft:end_stone")?,
             portal: get("minecraft:end_portal")?,
             torches: [north?, east?, south?, west?],
-            same_blocks: [end_stone?, air?, portal?],
         })
     }
     pub fn place<W: FeatureWorld + PlacementContext>(
@@ -117,16 +101,16 @@ impl EndPodiumFeature {
                         .set_block(p, self.bedrock, 3)
                         .map_err(EndPodiumError::World)?;
                 } else {
-                    self.replace(world, p, self.end_stone, 0)?;
+                    self.replace(world, p, self.end_stone)?;
                 }
             } else if p[1] > origin[1] {
-                self.replace(world, p, self.air, 1)?;
+                self.replace(world, p, self.air)?;
             } else if !inner {
                 world
                     .set_block(p, self.bedrock, 3)
                     .map_err(EndPodiumError::World)?;
             } else if self.active {
-                self.replace(world, p, self.portal, 2)?;
+                self.replace(world, p, self.portal)?;
             } else {
                 world
                     .set_block(p, self.air, 3)
@@ -148,21 +132,15 @@ impl EndPodiumFeature {
         }
         Ok(true)
     }
+    /// 1.21.4's `place` sets the podium blocks directly; 1.21.5 routes
+    /// them through `dropPreviousAndSetBlock`, which destroys the
+    /// previous block (dropping its loot) when it differs.
     fn replace<W: FeatureWorld + PlacementContext>(
         &self,
         world: &mut W,
         p: [i32; 3],
         state: BlockStateId,
-        kind: usize,
     ) -> Result<(), EndPodiumError<W::Error>> {
-        if self.active {
-            if self.same_blocks[kind].contains(&world.block(p).map_err(EndPodiumError::World)?) {
-                return Ok(());
-            }
-            world
-                .destroy_block_without_entity(p, true)
-                .map_err(EndPodiumError::Query)?;
-        }
         world
             .set_block(p, state, 3)
             .map_err(EndPodiumError::World)?;

@@ -1,0 +1,113 @@
+{
+  "release": "1.21.4",
+  "rank": "3-5",
+  "batch": 84,
+  "note": "Batch 84 closed (2026-11-28): 365 ported \u2014 the creative mace/sword/trident destroy gate lives in Item.canAttackBlock in 1.21.4 (item 119 was wrong); 366 carry-over \u2014 brush is a Player-vs-LivingEntity signature generalization plus a renderer parameter; 367 ported \u2014 the creaking heart's updateShape applies updateState immediately in 1.21.4 (no block tick; 1.21.5 schedules one); 368 ported \u2014 ender-eye portal lighting and the end podium both dropped the 1.21.5 destroy-first behaviour. Rank 3 now 17/149 (13 accepted + 4 closed), rank 4 0/39, rank 5 2/2 (both accepted). Seeded with the triage's 15 ACCEPT + 2 DEFER entries (jar evidence in RANK3-TRIAGE.md; owner decision 2026-11-28 11:50 NPT for the Realms deferrals).",
+  "items": {
+    "437": {
+      "module": "crates/horizon-protocol/src/hash_ops.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): All 5 classes absent from both 1.21.4 jars (HashedPatchMap/HashOps = 1.21.5 hashed-component protocol; 1.21.4 has no HashedStack class). Rust hash_ops.rs/item/hash.rs has no live callers outside its own tests \u2014 dead cross-version tolerance, leave alone; item 372's batch re-confirms inertness."
+    },
+    "448": {
+      "module": "crates/horizon-client/src/mobs/farm.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): SheepColorSpawnRules x3 absent (1.21.5 sheep-variant spawn rules)."
+    },
+    "457": {
+      "module": "crates/horizon-client-core/src/particle_type.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): FireflyParticle x2 absent (1.21.5 garden content \u2014 firefly particle, delta section)."
+    },
+    "464": {
+      "module": "crates/horizon-client/src/game/test_environments.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): TestEnvironmentDefinition$Functions + SavedDataType absent (1.21.5 test-block framework). Rust test_environments.rs is dead support; removal is a separate focused item (item 283 pattern)."
+    },
+    "465": {
+      "module": "crates/horizon-client/src/game/test_instances.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): TestInstanceRenderer + TestData absent. Rust test_instances.rs dead support, as 464."
+    },
+    "466": {
+      "module": "crates/horizon-client/src/item_sync.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): DataComponentMatchers x2 absent (1.21.5 advancement criterion)."
+    },
+    "473": {
+      "module": "crates/horizon-protocol/src/item/hash/gameplay.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): WrittenBookPredicate x2 absent (1.21.5 component predicate)."
+    },
+    "480": {
+      "module": "crates/horizon-client-core/src/component.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): HoverEvent$ShowText absent (1.21.5 hover-event form); see 380 for the live HoverEvent diff."
+    },
+    "482": {
+      "module": "crates/horizon-client-render/src/gfx/submit.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): CommandEncoder absent (1.21.5 blaze3d render-system class)."
+    },
+    "493": {
+      "module": "crates/horizon-client/src/game/resource_load.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): Scope$1 absent (1.21.5-only synthetic class)."
+    },
+    "495": {
+      "module": "crates/horizon-client/src/lan/guest.rs",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): ProvidesTrimMaterial absent (1.21.5 trim component)."
+    },
+    "505": {
+      "module": "widely named: com/mojang/blaze3d/pipeline",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): BlendFunction absent (1.21.5 pipeline class)."
+    },
+    "506": {
+      "module": "widely named: com/mojang/blaze3d/systems",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): RenderPass$Draw absent (1.21.5 systems class)."
+    },
+    "547": {
+      "module": "none (datagen/report-level)",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): 17 new classes in client/data/models/blockstates (15) + data/tags (2) \u2014 datagen packages the report classes as unported; no Horizon references."
+    },
+    "548": {
+      "module": "none (datagen/report-level)",
+      "verdict": "accepted",
+      "evidence": "ACCEPT-WITH-CAUSE (triage 2026-11-28, jar-verified; see RANK3-TRIAGE.md): 603 changed/removed classes in 133 packages the report classes as unported (largest: world/level/block 56, blaze3d/opengl 27, blaze3d/platform 18). Caveat: classes not individually enumerated in the report; acceptance rests on the report's accounting + the delta section's removal list. The world/level/block 56 are the 1.21.5-only blocks (test blocks, garden content) already covered individually by rank-3 removed=True checks."
+    },
+    "362": {
+      "module": "crates/horizon-client/src/realms.rs",
+      "verdict": "deferred",
+      "evidence": "DEFER \u2014 owner decision 2026-11-28 11:50 NPT: Realms is deferred until user testing. Do not port now; do not accept out of scope. Realms is real, wired Horizon code (realms.rs, 44 methods, 8 named live); present in the 1.21.4 jars, but only reachable with a signed-in Microsoft account. If issues arise from Realms testing later, they will be known then."
+    },
+    "497": {
+      "module": "crates/horizon-client/src/realms/upload.rs",
+      "verdict": "deferred",
+      "evidence": "DEFER \u2014 owner decision 2026-11-28 11:50 NPT (as 362): Realms is deferred until user testing. realms/upload.rs, 1 method, 0 named."
+    },
+    "365": {
+      "module": "crates/horizon-client/src/game/mace.rs",
+      "verdict": "ported",
+      "evidence": "Rank-2 item 119's conclusion was wrong: it removed the 1.21.5 can_destroy_blocks_in_creative Tool gate, claiming 'in 1.21.4 creative always destroys'. In fact 1.21.4 gates the same behaviour through Item.canAttackBlock, overridden by MaceItem, SwordItem and TridentItem to return !isCreative(), called first by ServerPlayerGameMode.destroyBlock. PORTED: held_item_can_attack_block() gate at the top of break_block_as_player (game.rs) + creative destroy_block comment corrected (hand.rs); creative_mining probe + VanillaCreativeMiningOracle now print false for creative + sword/trident/mace rows. Other MaceItem diffs NO-CHANGE (javap vs both jars): hurtEnemy boolean->void is signature-only (1.21.4 returns true); getAttackDamageBonus float arithmetic in 1.21.4 vs double in 1.21.5 (LivingEntity.fallDistance float vs double) while the Rust computes in f64 then casts to f32 \u2014 at most 1 float ulp; canSmashAttack fallDistance > 1.5 && !isFallFlying matches; knockback constants match (radius 3.5, power 0.7, heavy x2 after a fall > 5); createToolProperties' 4th Tool arg (canDestroyBlocksInCreative=false) is the 1.21.5 form of the same gate."
+    },
+    "366": {
+      "module": "crates/horizon-client/src/game/brush.rs",
+      "verdict": "carry-over",
+      "evidence": "Carry-over (javap vs both jars): BrushableBlockEntity.brush/unpackLootTable/brushingCompleted/dropContent take Player in 1.21.4 vs LivingEntity in 1.21.5 \u2014 a signature generalization with no 1.21.4 behaviour (only players brush in 1.21.4); the Rust's player-only model matches. BrushableBlockRenderer.render gains a 7th Vec3 camera-position parameter in 1.21.5 \u2014 API-only; the Rust's brushable_geometry already takes the camera. BrushItem.onUseTick is byte-identical between versions. No code changes."
+    },
+    "367": {
+      "module": "crates/horizon-world/src/level/creaking.rs",
+      "verdict": "ported",
+      "evidence": "PORTED: 1.21.4's CreakingHeartBlock.updateShape calls updateState directly; 1.21.5 schedules a tick (delay 1) whose tick applies it, and 1.21.4 has no CreakingHeartBlock.tick at all. The Rust had the 1.21.5 form (shapes.rs scheduled a delay-1 tick; heart_tick applied updateState). Now shapes.rs applies heart_update_state immediately on the sup() result, and heart_tick + its tick.rs dispatch are removed. animateTick verified in the client's animate_tick.rs (night via creaking_active + active state + nextInt(16)==0 + surrounded by pale oak logs -> CREAKING_HEART_IDLE) \u2014 matches 1.21.4's animateTick. getStateForPlacement verified (axis from clicked face + updateState; natural untouched, default false). onRemove/removeProtector + playerWillDestroy XP (natural, 20+rand(5)) already ported in batch 82. Level test creaking_heart_follows_its_logs passes locally with the immediate form."
+    },
+    "368": {
+      "module": "crates/horizon-client/src/game/end.rs",
+      "verdict": "ported",
+      "evidence": "PORTED two 1.21.5 leaks, both javap-verified: (1) EnderEyeItem.useOn \u2014 1.21.5 destroys the block at each portal cell (destroyBlock, dropping loot) before setting END_PORTAL; 1.21.4 sets END_PORTAL directly (Level.setBlock, 2). Removed the destroy_block call from use_ender_eye (game/end.rs). (2) EndPodiumFeature \u2014 1.21.5 routes the end_stone/air/portal sets through dropPreviousAndSetBlock (destroy previous with drops when it differs); 1.21.4's place() is 8 plain setBlock calls, no destroy. replace() in worldgen/end_podium.rs is now a plain set_block; same_blocks field + kind parameter removed. Carry-over: EyeOfEnder.tick's tail is setPosRaw in 1.21.4 vs setPos in 1.21.5 (position-only vs + bounding-box refresh) \u2014 the Rust's eye ticks set position only, matching 1.21.4; save/load is a codec-vs-save API reshape with identical NBT and the same parse-or-default-item fallback (SummonedEye::load); EndPortalFrameBlock shapes are value-identical (BASE box(0,0,0,16,13,16) + EYE box(4,13,4,12,16,12); 1.21.5 rebuilds them via Block.column as SHAPE_EMPTY/SHAPE_FULL)."
+    }
+  }
+}

@@ -47,13 +47,6 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             state
         }
     }
-    /// `CreakingHeartBlock.tick` (scheduled by `updateShape`).
-    pub(crate) fn heart_tick(&mut self, state: BlockStateId, pos: BlockPos) {
-        let next = self.heart_update_state(state, pos);
-        if next != state {
-            self.set_block_and_update(pos, next);
-        }
-    }
     /// `CreakingHeartBlock.getStateForPlacement` after the axis is set.
     pub(crate) fn heart_placement(&self, state: BlockStateId, pos: BlockPos) -> BlockStateId {
         self.heart_update_state(state, pos)

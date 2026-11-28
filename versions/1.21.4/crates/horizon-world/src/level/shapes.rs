@@ -396,8 +396,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 sup!()
             }
             Class::CreakingHeart => {
-                self.schedule_tick(pos, block, 1);
-                sup!()
+                // 1.21.4's `updateShape` calls `updateState` directly;
+                // 1.21.5 schedules a tick (delay 1) whose `tick` applies
+                // it, and 1.21.4 has no `CreakingHeartBlock.tick` at all.
+                let next = sup!();
+                self.heart_update_state(next, pos)
             }
             Class::Door => {
                 let lower = table.text(state, p.half) == "lower";

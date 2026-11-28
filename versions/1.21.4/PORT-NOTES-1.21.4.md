@@ -6410,3 +6410,45 @@ shape for the review batches.
   their modules (9 misses flagged per item). DEFER stays Realms only (362+497:
   realms.rs 12,946 lines, 8/8 named live, Realms present in 1.21.4 jars, but
   only reachable with a signed-in Microsoft account — owner scope call).
+
+  Batch 84 (2026-11-28, rank 3 G1: report ids 365-368). Rank 3 now 17/149
+  (13 accepted + 4 closed), rank 5 2/2 (both accepted); total 377/548.
+  New ledger `rank345-progress.json` seeded with the triage's 15 ACCEPT +
+  2 DEFER entries. 365 PORTED (mace): rank-2 item 119 was wrong — it
+  removed the 1.21.5 `can_destroy_blocks_in_creative` Tool gate, reading
+  "creative always destroys", but 1.21.4 gates the same behaviour through
+  `Item.canAttackBlock`, overridden by MaceItem, SwordItem and TridentItem
+  to `!isCreative()` and called first by
+  `ServerPlayerGameMode.destroyBlock`. The Rust now has
+  `held_item_can_attack_block()` gating `break_block_as_player` (game.rs),
+  the creative `destroy_block` comment corrected (hand.rs), and the
+  creative_mining probe + oracle printing false for creative +
+  sword/trident/mace rows. Other MaceItem diffs NO-CHANGE (javap vs both
+  jars): `hurtEnemy` boolean->void is signature-only; `getAttackDamageBonus`
+  is float arithmetic in 1.21.4 vs double in 1.21.5 (at most 1 float ulp
+  against the Rust's f64-then-f32); `canSmashAttack`, knockback constants
+  (radius 3.5, power 0.7, heavy x2 after a fall > 5) and the 4th Tool arg
+  all match. 366 CARRY-OVER (brush): `BrushableBlockEntity` brush methods
+  take Player in 1.21.4 vs LivingEntity in 1.21.5 (signature
+  generalization, no 1.21.4 behaviour); the renderer gains a 7th Vec3
+  camera parameter in 1.21.5 (API-only); `BrushItem.onUseTick` is
+  byte-identical. 367 PORTED (creaking): 1.21.4's `updateShape` calls
+  `updateState` directly; 1.21.5 schedules a delay-1 tick whose `tick`
+  applies it, and 1.21.4 has no `CreakingHeartBlock.tick` at all. The Rust
+  had the 1.21.5 form (shapes.rs scheduled the tick); now updateShape
+  applies `heart_update_state` immediately and `heart_tick` + its dispatch
+  are removed. `animateTick` verified in animate_tick.rs (night + active +
+  1/16 + surrounded by logs -> idle creak); `getStateForPlacement` verified
+  (axis + updateState, natural untouched). Level test
+  `creaking_heart_follows_its_logs` passes locally with the immediate form.
+  368 PORTED (end): two 1.21.5 leaks — `EnderEyeItem.useOn` destroyed the
+  block at each portal cell before setting END_PORTAL (1.21.4 sets it
+  directly; destroy call removed from `use_ender_eye`), and
+  `EndPodiumFeature` routed its end_stone/air/portal sets through
+  `dropPreviousAndSetBlock` (destroy-with-drops when different; 1.21.4's
+  `place()` is 8 plain `setBlock` calls, so `replace()` is now a plain set
+  and `same_blocks` is gone). Carry-over: EyeOfEnder tick tail is
+  `setPosRaw` in 1.21.4 vs `setPos` in 1.21.5 (the Rust sets position
+  only); save/load is a codec-vs-save reshape with identical NBT and the
+  same default-item fallback; EndPortalFrameBlock shapes are
+  value-identical (BASE + EYE boxes, 1.21.5 rebuilds them via `Block.column`).

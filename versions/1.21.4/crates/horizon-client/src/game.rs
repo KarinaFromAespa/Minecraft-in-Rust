@@ -4937,7 +4937,40 @@ impl Game<'_> {
         self.with_level(|b, level, ticks| b.set_block(level, ticks, at, cracked, 4));
         cracked
     }
+    /// `Item.canAttackBlock` for the held item, as `ServerPlayerGameMode.destroyBlock`
+    /// calls it: the default is true, and only `MaceItem`, `SwordItem` and
+    /// `TridentItem` override it in 1.21.4, each returning `!isCreative()`.
+    /// (`DebugStickItem` has its own override, handled separately by
+    /// `debug_stick_can_destroy`.) A non-creative player passes with any item.
+    fn held_item_can_attack_block(&self) -> bool {
+        if !self.creative {
+            return true;
+        }
+        !matches!(
+            self.held().map(|s| &*s.item),
+            Some(
+                "minecraft:mace"
+                    | "minecraft:trident"
+                    | "minecraft:wooden_sword"
+                    | "minecraft:stone_sword"
+                    | "minecraft:iron_sword"
+                    | "minecraft:golden_sword"
+                    | "minecraft:diamond_sword"
+                    | "minecraft:netherite_sword"
+            )
+        )
+    }
     fn break_block_as_player(&mut self, pos: [i32; 3]) -> Result<bool> {
+        // ServerPlayerGameMode.destroyBlock calls Item.canAttackBlock first:
+        // MaceItem, SwordItem and TridentItem all return `!isCreative()` in
+        // 1.21.4, so a creative player cannot destroy a block with a sword,
+        // trident or mace in hand. 1.21.5 moved this into the Tool component's
+        // can_destroy_blocks_in_creative field (item 119 removed that gate,
+        // reading "creative always destroys" — true for every other item, but
+        // the 1.21.4 canAttackBlock overrides say otherwise for these three).
+        if !self.held_item_can_attack_block() {
+            return Ok(false);
+        }
         // DebugStickItem.canDestroyBlock: a left click selects a property and
         // never destroys the block.
         if !self.debug_stick_can_destroy(pos)? {

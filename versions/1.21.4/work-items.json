@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 348/348 (2026-11-27, batch 83: report ids 354-357 \u2014 all carry-over, no code changes; rank 2 complete). Rank 3/4/5 open.",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 348/348 (2026-11-27, batch 83: report ids 354-357 \u2014 all carry-over, no code changes; rank 2 complete). Rank 3 at 17/149 (2026-11-28, batch 84: report ids 365-368 \u2014 365 mace ported, 366 brush carry-over, 367 creaking ported, 368 end ported; plus the triage's 13 accepted rank-3 items recorded). Rank 4 at 0/39. Rank 5 at 2/2 (both accepted).",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -12,8 +12,22 @@
     "total": 348
   },
   "rank3": {
-    "accepted": [],
-    "closed": 0,
+    "accepted": [
+      437,
+      448,
+      457,
+      464,
+      465,
+      466,
+      473,
+      480,
+      482,
+      493,
+      495,
+      505,
+      506
+    ],
+    "closed": 17,
     "total": 149
   },
   "rank3plus": "Inherits the 1.21.5 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
@@ -23,8 +37,11 @@
     "total": 39
   },
   "rank5": {
-    "accepted": [],
-    "closed": 0,
+    "accepted": [
+      547,
+      548
+    ],
+    "closed": 2,
     "total": 2
   },
   "release": "1.21.4"

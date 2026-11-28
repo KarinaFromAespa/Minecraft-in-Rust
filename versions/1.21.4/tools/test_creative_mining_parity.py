@@ -25,9 +25,12 @@ def main():
     harness.differential(
         'rust-creative-mining-parity', 'VanillaCreativeMiningOracle',
         'creative_mining_probe', make_input,
-        '1.21.4 has no `Item.canDestroyBlock`: a creative player destroys any block with any held '
-        'item, whatever the stack tool component says. Block destruction and network '
-        'prediction call this predicate; end-to-end packet handling is not covered here.',
+        '1.21.4 has no `Item.canDestroyBlock` (a 1.21.5 `Tool` field), but '
+        '`Item.canAttackBlock` still gates the destroy: MaceItem, SwordItem '
+        'and TridentItem all return `!isCreative()` in 1.21.4, so a creative '
+        'player destroys no block with a sword, trident or mace in hand. '
+        'Block destruction and network prediction call this predicate; '
+        'end-to-end packet handling is not covered here.',
         sources=[lab.ROOT / 'crates/horizon-items/src/items.rs'])
 
 

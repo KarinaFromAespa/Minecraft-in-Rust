@@ -533,10 +533,9 @@ impl Game<'_> {
             for dz in -1..=1 {
                 for dx in -1..=1 {
                     let p = [c[0] + dx, c[1], c[2] + dz];
-                    let at = BlockPos::new(p[0], p[1], p[2]);
-                    self.with_level(|b, level, ticks| {
-                        b.destroy_block(level, ticks, at, true);
-                    });
+                    // 1.21.4's `useOn` sets the portal block directly;
+                    // 1.21.5 destroys the block at each portal cell first
+                    // (`destroyBlock`, dropping its loot).
                     self.set_state_named(p, "minecraft:end_portal", &[])?;
                 }
             }
