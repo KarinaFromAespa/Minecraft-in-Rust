@@ -86,19 +86,18 @@ mod tests {
     fn chunk_26_1() -> Vec<u8> {
         let sections = vec![chunk::Section {
             non_empty: 4096,
-            fluids: 0,
             states: Paletted::from_values(&[5543; chunk::BLOCKS], Strategy::Blocks, 16),
             biomes: Paletted::from_values(&[1; chunk::BIOMES], Strategy::Biomes, 0),
         }];
         let column = chunk::ChunkData {
             heightmaps: vec![(1, vec![0x0101; 37])],
-            buffer: chunk::ChunkData::from_sections(&sections),
+            buffer: chunk::ChunkData::from_sections_26_2(&sections),
             block_entities: Vec::new(),
         };
         let mut w = Writer::new();
         w.i32(3);
         w.i32(-7);
-        chunk::ChunkData::write(&column, &mut w);
+        chunk::ChunkData::write_26_2(&column, &mut w);
         // Four empty masks and two empty light layer lists.
         (0..4).for_each(|_| w.varint(0));
         let none: Vec<Vec<u8>> = Vec::new();

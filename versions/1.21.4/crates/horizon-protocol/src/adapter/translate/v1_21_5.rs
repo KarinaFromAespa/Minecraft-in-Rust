@@ -241,12 +241,8 @@ mod tests {
         assert_eq!((p.x, p.z), (2, -3));
         let sections = p.chunk.sections(2, 16, 6).unwrap();
         assert_eq!(
-            (
-                sections[0].states.get(0),
-                sections[0].biomes.get(0),
-                sections[0].fluids
-            ),
-            (1, 7, 0)
+            (sections[0].states.get(0), sections[0].biomes.get(0)),
+            (1, 7)
         );
         assert_eq!(sections[1].states.palette, [0, 1]);
         assert_eq!(

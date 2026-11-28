@@ -318,12 +318,17 @@ packet!(
 );
 impl ChunkBiomeData {
     /// `LevelChunk.replaceBiomes`' read: `count` sections' biome
-    /// containers, one after another.
+    /// containers, one after another, each with its data array's length
+    /// as 1.21.4 writes it.
     pub fn biomes(&self, count: usize, biome_bits: u8) -> Result<Vec<crate::chunk::Paletted>> {
         let mut r = Reader::new(&self.buffer);
         (0..count)
             .map(|_| {
-                crate::chunk::Paletted::read(&mut r, crate::chunk::Strategy::Biomes, biome_bits)
+                crate::chunk::Paletted::read_prefixed(
+                    &mut r,
+                    crate::chunk::Strategy::Biomes,
+                    biome_bits,
+                )
             })
             .collect()
     }
@@ -331,7 +336,7 @@ impl ChunkBiomeData {
     pub fn from_biomes(pos: [i32; 2], biomes: &[crate::chunk::Paletted]) -> Self {
         let mut w = Writer::new();
         for b in biomes {
-            b.write(&mut w);
+            b.write_prefixed(&mut w, crate::chunk::Strategy::Biomes);
         }
         Self {
             pos,

@@ -6781,3 +6781,40 @@ shape for the review batches.
   older servers than the pinned version, not as a substitute for native
   reading of the pinned version. Applies to any similar adapter-vs-native
   question in the remaining batches.
+
+  Item 408 (2026-11-28, own unit, not a batch). Rank 3 now 56/149 (13
+  accepted + 43 closed); total 416/548. 408 PORT (remote_chunks.rs): the
+  owner's decision (option b) -- re-pin the native chunk codec to 769,
+  the adapter keeping its own 26.2-layout codecs. What changed, all
+  jar-verified against the named 1.21.4 client jar: ChunkData.heightmaps
+  is now an NBT compound (new HeightmapsNbt codec, ids are
+  HeightmapType::ALL indices, the same numbering the map form uses;
+  ClientboundLevelChunkPacketData.heightmaps is a CompoundTag of
+  sendToClient types keyed by getSerializationKey); Section is one short
+  plus prefixed palettes (new Paletted::write_prefixed; the fluids i16 is
+  gone; LevelChunkSection.write writes one short and
+  PalettedContainer.Data.write prefixes the storage with a VarInt long
+  count); light masks are BitSet.toLongArray (buf::BitSet re-pinned;
+  FriendlyByteBuf.writeBitSet is writeLongArray(toLongArray())); and
+  ChunkBiomeData containers are prefixed too
+  (ChunkBiomeData.extractChunkData writes each biome container via
+  PalettedContainerRO.write). The adapter keeps its 26.2 layout beside
+  the native one (Heightmaps map form, Section::read_26_2/write_26_2,
+  ChunkData::read_26_2/write_26_2/sections_26_2/from_sections_26_2):
+  translate::chunk reads 26.2-form sections and writes the pinned 769
+  wire, client_session/world.rs::level_chunk writes 26.2-form columns for
+  26.2 clients, and the LAN host now serves 769-form chunk packets (NBT
+  heightmaps, prefixed sections, long-array light masks -- write_light
+  follows BitSet, and Prepared::write uses HeightmapsNbt). No pin_layout
+  chunk arm was needed: translate::chunk already converts 26.2 to
+  pinned, so a pin_layout arm would have double-converted. Item 161
+  re-checked: the adapter still handles the prefixed palettes --
+  v1_21_4::chunk converts prefixed to unprefixed unchanged, and
+  nbt_heightmaps_and_prefixed_palettes_reach_the_pinned_chunk passes with
+  the native codec now reading the prefixed form directly (only its
+  fluids assertion dropped, the field no longer exists). Direct-path
+  proof: new test a_raw_769_chunk_packet_decodes decodes a hand-built raw
+  769 LevelChunkWithLight packet with play::Clientbound::decode (the
+  batch-90 failure, "NBT: NBT at byte 1: unknown tag type", is gone).
+  Also corrected two stale 1.21.8 mentions in translate.rs comments to
+  the 1.21.4 pin.

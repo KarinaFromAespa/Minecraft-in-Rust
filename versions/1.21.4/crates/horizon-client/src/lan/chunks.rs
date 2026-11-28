@@ -11,7 +11,7 @@ use crate::{
 use horizon_protocol::{
     buf::{BitSet, Codec, List, Writer, set_bit},
     chunk::{
-        BIOMES, BLOCKS, BlockEntityInfo, ChunkData, Heightmaps, LightData, Paletted, Strategy,
+        BIOMES, BLOCKS, BlockEntityInfo, ChunkData, HeightmapsNbt, LightData, Paletted, Strategy,
     },
     packets::play::{ChunkBiomeData, LevelChunkWithLight},
     registry::{Builtin, ceil_log2},
@@ -233,14 +233,11 @@ impl SectionCoder {
     }
 
     fn section(&self, section: &Section) -> (horizon_protocol::chunk::Section, Vec<(u16, u32)>) {
-        let (mut non_empty, mut fluids, mut entities) = (0i16, 0i16, Vec::new());
+        let (mut non_empty, mut entities) = (0i16, Vec::new());
         let mut count = |state: u32, n: i16| {
             let f = self.flags.get(state as usize).copied().unwrap_or(0);
             if f & NON_AIR != 0 {
                 non_empty += n;
-                if f & FLUID != 0 {
-                    fluids += n;
-                }
             }
             f & ENTITY != 0
         };
@@ -291,7 +288,6 @@ impl SectionCoder {
         (
             horizon_protocol::chunk::Section {
                 non_empty,
-                fluids,
                 states,
                 biomes: self.biomes(section),
             },
@@ -399,7 +395,9 @@ impl Prepared {
             + self
                 .heightmaps
                 .iter()
-                .map(|(_, h)| 10 + 8 * h.len())
+                // An NBT long array per heightmap: tag, name and length
+                // around the longs (the longest name is 24 bytes).
+                .map(|(_, h)| 32 + 8 * h.len())
                 .sum::<usize>()
             + buffer
             + self.tags.len()
@@ -410,7 +408,7 @@ impl Prepared {
         w.varint(horizon_protocol::ids::play::clientbound::LEVEL_CHUNK_WITH_LIGHT);
         w.i32(self.x);
         w.i32(self.z);
-        Heightmaps::write(&*self.heightmaps, &mut w);
+        HeightmapsNbt::write(&*self.heightmaps, &mut w);
         w.varint(buffer as i32);
         for wire in &self.wires {
             w.bytes(wire);

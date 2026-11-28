@@ -570,16 +570,37 @@ impl Codec<[i32; 3]> for SectionPos {
         )
     }
 }
-/// ByteBufCodecs.BIT_SET: java.util.BitSet as a VarInt-prefixed byte array.
+/// A `java.util.BitSet` as 1.21.4 writes it (`FriendlyByteBuf.writeBitSet`):
+/// `toLongArray`, a VarInt count of longs. 26.3 sends `toByteArray` instead;
+/// the adapter converts between the two forms (`translate::light`,
+/// `client_session::light_down`), and the decoded value here stays the
+/// bytes, trailing zero bytes dropped as `toByteArray` would.
 pub struct BitSet;
 impl Codec<Vec<u8>> for BitSet {
     fn read(r: &mut Reader) -> Result<Vec<u8>> {
-        r.byte_array(r.remaining())
+        let mut bytes: Vec<u8> = r
+            .long_array()?
+            .iter()
+            .flat_map(|l| l.to_le_bytes())
+            .collect();
+        let len = bytes.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
+        bytes.truncate(len);
+        Ok(bytes)
     }
     fn write(v: &Vec<u8>, w: &mut Writer) {
-        // BitSet.toByteArray drops trailing zero bytes.
-        let len = v.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
-        w.byte_array(&v[..len])
+        // BitSet.toLongArray: little-endian longs, none past the last set bit.
+        let mut longs: Vec<i64> = v
+            .chunks(8)
+            .map(|c| {
+                let mut b = [0u8; 8];
+                b[..c.len()].copy_from_slice(c);
+                i64::from_le_bytes(b)
+            })
+            .collect();
+        while longs.last() == Some(&0) {
+            longs.pop();
+        }
+        w.long_array(&longs)
     }
 }
 pub fn bit(set: &[u8], i: usize) -> bool {
@@ -862,15 +883,29 @@ mod tests {
     }
 
     #[test]
-    fn bitset_drops_trailing_zero_bytes() {
+    fn bitset_is_a_long_array() {
         let mut set = vec![0u8; 4];
         set_bit(&mut set, 3);
         set_bit(&mut set, 9);
         let mut w = Writer::new();
         BitSet::write(&set, &mut w);
-        assert_eq!(w.data, [2, 0b1000, 0b10]);
+        // One long: the VarInt count, then the long big-endian (Java's writeLong).
+        assert_eq!(w.data, [1, 0, 0, 0, 0, 0, 0, 0b10, 0b1000]);
         let read = BitSet::read(&mut Reader::new(&w.data)).unwrap();
+        assert_eq!(read, vec![0b1000, 0b10]);
         assert!(bit(&read, 3) && bit(&read, 9) && !bit(&read, 4) && !bit(&read, 100));
+        // A bit past the first long writes two longs, trailing zero longs dropped.
+        let mut far = vec![0u8; 9];
+        set_bit(&mut far, 3);
+        set_bit(&mut far, 70);
+        let mut w = Writer::new();
+        BitSet::write(&far, &mut w);
+        assert_eq!(
+            w.data,
+            [2, 0, 0, 0, 0, 0, 0, 0, 0b1000, 0, 0, 0, 0, 0, 0, 0, 0b1000000]
+        );
+        let read = BitSet::read(&mut Reader::new(&w.data)).unwrap();
+        assert!(bit(&read, 3) && bit(&read, 70) && !bit(&read, 9));
     }
 
     #[test]

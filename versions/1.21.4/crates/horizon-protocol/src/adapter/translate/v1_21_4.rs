@@ -474,12 +474,8 @@ mod tests {
         );
         assert_eq!(sections[1].states.palette, [0, 7006]);
         assert_eq!(
-            (
-                sections[1].states.get(1),
-                sections[1].biomes.get(63),
-                sections[1].fluids
-            ),
-            (7006, 0, 0)
+            (sections[1].states.get(1), sections[1].biomes.get(63)),
+            (7006, 0)
         );
     }
 

@@ -202,7 +202,7 @@ pub fn clientbound(
     }
     let payload = before.as_deref().unwrap_or(payload);
     // The steps bring an older server's packets to 26.2's layout; the pinned
-    // 1.21.8 wire lays five of them out differently, so they are stripped to
+    // 1.21.4 wire lays five of them out differently, so they are stripped to
     // the pinned layout before the arms below decode them.
     let payload = match pin_layout(state, id, payload)? {
         Some(stripped) => {
@@ -382,7 +382,7 @@ pub fn clientbound(
 }
 
 /// The five packets 1.21.9 reshaped, brought from 26.2's layout (what the
-/// steps above produce) to the pinned 1.21.8 wire. `None` when the packet
+/// steps above produce) to the pinned 1.21.4 wire. `None` when the packet
 /// is laid out alike. Velocities quantize twice (shorts → LpVec3 → shorts)
 /// on the round trip, by at most one short unit (1/8000 of a block per
 /// tick); the steps' tests assert within 0.001.
@@ -860,7 +860,9 @@ fn respawn(payload: &[u8], version: ServerVersion) -> Result<Vec<u8>> {
 
 /// The column's sections with their block states renumbered and packed for the pinned palette width (a
 /// section on the older global palette uses fewer bits per entry), and its light masks as 26.3 sends them.
-/// Biomes are the server's own registry and stay as they are.
+/// Biomes are the server's own registry and stay as they are. The column arrives in 26.2's layout (what
+/// the steps above produce) and leaves in the pinned 769 wire (NBT heightmaps, one short per section,
+/// prefixed containers).
 pub(super) fn chunk(session: &Session, ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
     let x = r.i32()?;
@@ -882,7 +884,7 @@ pub(super) fn chunk(session: &Session, ids: &'static Ids, payload: &[u8]) -> Res
     let mut sections = Reader::new(&buffer);
     let mut out = Vec::new();
     while sections.remaining() > 0 {
-        let mut s = Section::read(&mut sections, old_bits, 0)?;
+        let mut s = Section::read_26_2(&mut sections, old_bits, 0)?;
         s.states = renumber_states(ids, &s.states, new_bits);
         out.push(s);
     }

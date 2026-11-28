@@ -1,12 +1,21 @@
-//! Chunk column payloads: ClientboundLevelChunkPacketData (heightmaps, the
-//! serialized LevelChunkSections with their PalettedContainers, block
-//! entities) and ClientboundLightUpdatePacketData (sky/block DataLayers).
+//! Chunk column payloads in the pinned 1.21.4 (769) wire form:
+//! ClientboundLevelChunkPacketData (heightmaps as an NBT compound, the
+//! serialized LevelChunkSections with their PalettedContainers carrying
+//! their data arrays' lengths, block entities) and
+//! ClientboundLightUpdatePacketData (sky/block DataLayers, the masks as
+//! `BitSet.toLongArray`). The adapter keeps the 26.2 layout beside it
+//! (`Heightmaps`, `Section::read_26_2` / `write_26_2`,
+//! `ChunkData::read_26_2` / `write_26_2`): what its steps produce before
+//! the pinned codec reads it.
 use crate::{
     Error, Result,
-    buf::{BitSet, Bytes, Codec, Longs, Reader, VarInt, Writer},
+    buf::{BitSet, Bytes, Codec, List, Longs, Reader, VarInt, Writer},
     packet,
 };
-use horizon_world::nbt::Tag;
+use horizon_world::{
+    heightmap::HeightmapType,
+    nbt::{JavaString, Tag},
+};
 
 /// Blocks: 16^3 entries; biomes: 4^3 entries per section.
 pub const BLOCKS: usize = 4096;
@@ -129,6 +138,22 @@ impl Paletted {
         })
     }
     pub fn write(&self, w: &mut Writer) {
+        self.write_header(w);
+        for &l in &self.data {
+            w.i64(l);
+        }
+    }
+    /// PalettedContainer.Data.write as 1.21.4 sends it: the data array's
+    /// length (a VarInt) before the storage, computed from the bits per
+    /// entry. 1.21.5 writes the storage fixed-size instead.
+    pub fn write_prefixed(&self, w: &mut Writer, strategy: Strategy) {
+        self.write_header(w);
+        w.varint(storage_len(self.bits, strategy.entries()) as i32);
+        for &l in &self.data {
+            w.i64(l);
+        }
+    }
+    fn write_header(&self, w: &mut Writer) {
         w.u8(self.bits);
         if !self.palette.is_empty() {
             if self.bits != 0 {
@@ -137,9 +162,6 @@ impl Paletted {
             for &p in &self.palette {
                 w.varint(p);
             }
-        }
-        for &l in &self.data {
-            w.i64(l);
         }
     }
     /// The registry id at entry `i` ((y * 16 + z) * 16 + x for blocks).
@@ -265,11 +287,13 @@ impl Paletted {
     }
 }
 
-/// LevelChunkSection.write.
+/// LevelChunkSection.write as 1.21.4 sends it: one short (the non-empty
+/// block count), then the states and biomes with their data arrays'
+/// lengths. 26.1 added the ticking-fluid count after the block count, and
+/// 1.21.5 stopped writing the lengths.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Section {
     pub non_empty: i16,
-    pub fluids: i16,
     pub states: Paletted,
     pub biomes: Paletted,
 }
@@ -277,14 +301,32 @@ impl Section {
     pub fn read(r: &mut Reader, block_bits: u8, biome_bits: u8) -> Result<Self> {
         Ok(Self {
             non_empty: r.i16()?,
-            fluids: r.i16()?,
-            states: Paletted::read(r, Strategy::Blocks, block_bits)?,
-            biomes: Paletted::read(r, Strategy::Biomes, biome_bits)?,
+            states: Paletted::read_prefixed(r, Strategy::Blocks, block_bits)?,
+            biomes: Paletted::read_prefixed(r, Strategy::Biomes, biome_bits)?,
         })
     }
     pub fn write(&self, w: &mut Writer) {
         w.i16(self.non_empty);
-        w.i16(self.fluids);
+        self.states.write_prefixed(w, Strategy::Blocks);
+        self.biomes.write_prefixed(w, Strategy::Biomes);
+    }
+    /// A section in 26.2's layout (what the adapter's steps produce): the
+    /// non-empty block count, the ticking-fluid count, then the containers
+    /// without their lengths. The fluid count is read and dropped: the game
+    /// goes by the states.
+    pub fn read_26_2(r: &mut Reader, block_bits: u8, biome_bits: u8) -> Result<Self> {
+        let non_empty = r.i16()?;
+        let _fluids = r.i16()?;
+        Ok(Self {
+            non_empty,
+            states: Paletted::read(r, Strategy::Blocks, block_bits)?,
+            biomes: Paletted::read(r, Strategy::Biomes, biome_bits)?,
+        })
+    }
+    /// A section in 26.2's layout: the fluid count is written as 0.
+    pub fn write_26_2(&self, w: &mut Writer) {
+        w.i16(self.non_empty);
+        w.i16(0);
         self.states.write(w);
         self.biomes.write(w);
     }
@@ -314,10 +356,46 @@ impl Codec<Vec<(i32, Vec<i64>)>> for Heightmaps {
         }
     }
 }
+/// Heightmap type id with its packed long array, as 1.21.4 sends them: an
+/// NBT compound of long arrays by name (`ClientboundLevelChunkPacketData`,
+/// only the types whose `sendToClient` is true). The id is the type's index
+/// in [`HeightmapType::ALL`], the same numbering the map form uses; a name
+/// the compound has no long array for, and a kind it has no name for, are
+/// dropped.
+pub struct HeightmapsNbt;
+impl Codec<Vec<(i32, Vec<i64>)>> for HeightmapsNbt {
+    fn read(r: &mut Reader) -> Result<Vec<(i32, Vec<i64>)>> {
+        let tag = r.nbt()?;
+        let Tag::Compound(_) = tag else {
+            return Err(Error::new("heightmaps: not a compound"));
+        };
+        Ok(HeightmapType::ALL
+            .into_iter()
+            .enumerate()
+            .filter_map(|(id, kind)| match tag.get(kind.name()) {
+                Some(Tag::LongArray(longs)) => Some((id as i32, longs.clone())),
+                _ => None,
+            })
+            .collect())
+    }
+    fn write(v: &Vec<(i32, Vec<i64>)>, w: &mut Writer) {
+        let mut map = std::collections::BTreeMap::new();
+        for &(kind, ref longs) in v {
+            let Ok(i) = usize::try_from(kind) else {
+                continue;
+            };
+            let Some(kind) = HeightmapType::ALL.get(i) else {
+                continue;
+            };
+            map.insert(JavaString::from(kind.name()), Tag::LongArray(longs.clone()));
+        }
+        w.nbt(&Tag::Compound(map));
+    }
+}
 packet!(
     /// ClientboundLevelChunkPacketData.
     ChunkData {
-        heightmaps: Vec<(i32, Vec<i64>)> => Heightmaps,
+        heightmaps: Vec<(i32, Vec<i64>)> => HeightmapsNbt,
         buffer: Vec<u8> => Bytes,
         block_entities: Vec<BlockEntityInfo> => crate::buf::List<BlockEntityInfo>,
     }
@@ -330,12 +408,47 @@ impl ChunkData {
             .map(|_| Section::read(&mut r, block_bits, biome_bits))
             .collect()
     }
+    /// Decode `count` sections in 26.2's layout from the buffer.
+    pub fn sections_26_2(
+        &self,
+        count: usize,
+        block_bits: u8,
+        biome_bits: u8,
+    ) -> Result<Vec<Section>> {
+        let mut r = Reader::new(&self.buffer);
+        (0..count)
+            .map(|_| Section::read_26_2(&mut r, block_bits, biome_bits))
+            .collect()
+    }
     pub fn from_sections(sections: &[Section]) -> Vec<u8> {
         let mut w = Writer::new();
         for s in sections {
             s.write(&mut w);
         }
         w.data
+    }
+    /// The buffer in 26.2's layout.
+    pub fn from_sections_26_2(sections: &[Section]) -> Vec<u8> {
+        let mut w = Writer::new();
+        for s in sections {
+            s.write_26_2(&mut w);
+        }
+        w.data
+    }
+    /// A whole column in 26.2's layout (map heightmaps, two shorts per
+    /// section): what the adapter reads and writes for an older client.
+    pub fn read_26_2(r: &mut Reader) -> Result<Self> {
+        Ok(Self {
+            heightmaps: Heightmaps::read(r)?,
+            buffer: Bytes::read(r)?,
+            block_entities: <List<BlockEntityInfo>>::read(r)?,
+        })
+    }
+    /// A whole column in 26.2's layout.
+    pub fn write_26_2(&self, w: &mut Writer) {
+        Heightmaps::write(&self.heightmaps, w);
+        Bytes::write(&self.buffer, w);
+        <List<BlockEntityInfo>>::write(&self.block_entities, w);
     }
 }
 /// ByteBufCodecs.byteArray(2048) per DataLayer, whose constructor refuses
@@ -517,13 +630,11 @@ mod tests {
         }
         let section = Section {
             non_empty: 256,
-            fluids: 0,
             states: Paletted::from_values(&states, Strategy::Blocks, 16),
             biomes: Paletted::from_values(&[2; BIOMES], Strategy::Biomes, 7),
         };
         let empty = Section {
             non_empty: 0,
-            fluids: 0,
             states: Paletted::from_values(&[0; BLOCKS], Strategy::Blocks, 16),
             biomes: Paletted::from_values(&[2; BIOMES], Strategy::Biomes, 7),
         };
@@ -539,12 +650,88 @@ mod tests {
         };
         let mut w = Writer::new();
         ChunkData::write(&data, &mut w);
+        // 1.21.4's heightmaps are an NBT compound, not the map form.
+        assert_eq!(w.data[0], 0x0a);
         let back = ChunkData::read(&mut Reader::new(&w.data)).unwrap();
         assert_eq!(back, data);
         let sections = back.sections(2, 16, 7).unwrap();
         assert_eq!(sections, vec![section, empty]);
         assert_eq!(sections[0].states.get(4), 2);
         assert_eq!(sections[1].states.get(4), 0);
+    }
+
+    /// The direct path: a raw 769 chunk packet from a real 1.21.4 server,
+    /// with no adapter in between. Before the re-pin this failed at the
+    /// heightmaps with "NBT: NBT at byte 1: unknown tag type".
+    #[test]
+    fn a_raw_769_chunk_packet_decodes() {
+        // Two sections in 1.21.4's layout: one short, then each container
+        // with its data array's length (stone/biome 7, then a two-entry
+        // local block palette, as the adapter's 1.21.4 test writes them).
+        let mut sections = Writer::new();
+        sections.bytes(&[0x10, 0, 0, 1, 0, 0, 7, 0]);
+        sections.i16(2048);
+        sections.bytes(&[4, 2, 0]);
+        sections.varint(7006);
+        sections.varint(256);
+        for _ in 0..256 {
+            sections.i64(0x1010_1010_1010_1010);
+        }
+        sections.bytes(&[6, 7]);
+        for _ in 0..7 {
+            sections.i64(0);
+        }
+        let mut w = Writer::new();
+        w.i32(2);
+        w.i32(-3);
+        w.nbt(&Tag::Compound(
+            [
+                (JavaString::from("WORLD_SURFACE"), Tag::LongArray(vec![42])),
+                (
+                    JavaString::from("MOTION_BLOCKING"),
+                    Tag::LongArray(vec![99]),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        ));
+        w.byte_array(&sections.data);
+        w.varint(0); // no block entities
+        for _ in 0..4 {
+            w.varint(0); // light masks: empty long arrays
+        }
+        for _ in 0..2 {
+            w.varint(0); // no light layers
+        }
+        let p = crate::packets::play::Clientbound::decode(
+            crate::ids::play::clientbound::LEVEL_CHUNK_WITH_LIGHT,
+            &w.data,
+        )
+        .unwrap();
+        let crate::packets::play::Clientbound::LevelChunkWithLight(p) = p else {
+            panic!("chunk")
+        };
+        assert_eq!((p.x, p.z), (2, -3));
+        assert_eq!(p.chunk.heightmaps, vec![(1, vec![42]), (4, vec![99])]);
+        let sections = p.chunk.sections(2, 16, 6).unwrap();
+        assert_eq!(
+            (sections[0].states.get(0), sections[0].biomes.get(0)),
+            (1, 7)
+        );
+        assert_eq!(sections[1].states.palette, [0, 7006]);
+        assert_eq!(
+            (sections[1].states.get(1), sections[1].biomes.get(63)),
+            (7006, 0)
+        );
+        assert_eq!(
+            (
+                p.light.sky_mask,
+                p.light.block_mask,
+                p.light.empty_sky_mask,
+                p.light.empty_block_mask
+            ),
+            (Vec::new(), Vec::new(), Vec::new(), Vec::new())
+        );
     }
 
     #[test]

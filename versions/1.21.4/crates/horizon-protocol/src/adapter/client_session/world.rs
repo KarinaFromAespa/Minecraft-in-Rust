@@ -109,7 +109,8 @@ fn spawn_position(payload: &[u8]) -> Result<Vec<u8>> {
 
 /// The column with its block states renumbered (stand-ins for states 26.2 lacks) and packed for 26.2's
 /// narrower global palette, the block entities 26.2 has, and the light masks as 26.2 sends them. Biomes are
-/// the server's own registry and stay as they are.
+/// the server's own registry and stay as they are. The pinned packet arrives in 1.21.4's layout (NBT
+/// heightmaps, one short per section) and leaves in 26.2's (map heightmaps, two shorts).
 fn level_chunk(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let mut p = play::LevelChunkWithLight::read(&mut Reader::new(payload))?;
     let (old_bits, new_bits) = ids.state_bits();
@@ -120,7 +121,7 @@ fn level_chunk(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
         s.states = states_down(ids, &s.states, old_bits);
         sections.push(s);
     }
-    p.chunk.buffer = chunk::ChunkData::from_sections(&sections);
+    p.chunk.buffer = chunk::ChunkData::from_sections_26_2(&sections);
     // A block entity type 26.2 lacks goes; its block still draws.
     p.chunk.block_entities.retain_mut(|b| {
         ids.block_entity_type
@@ -131,7 +132,7 @@ fn level_chunk(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let mut w = Writer::new();
     w.i32(p.x);
     w.i32(p.z);
-    chunk::ChunkData::write(&p.chunk, &mut w);
+    chunk::ChunkData::write_26_2(&p.chunk, &mut w);
     light_down(&p.light, &mut w);
     Ok(w.data)
 }
@@ -413,7 +414,6 @@ mod tests {
         let plains = Paletted::from_values(&[1; chunk::BIOMES], Strategy::Biomes, 0);
         let section = |states: Paletted| Section {
             non_empty: 4096,
-            fluids: 0,
             states,
             biomes: plains.clone(),
         };
@@ -448,8 +448,8 @@ mod tests {
             let mut r = Reader::new(&old);
             r.i32().unwrap();
             r.i32().unwrap();
-            let c = chunk::ChunkData::read(&mut r).unwrap();
-            let s = c.sections(2, ids.state_bits().0, 0).unwrap();
+            let c = chunk::ChunkData::read_26_2(&mut r).unwrap();
+            let s = c.sections_26_2(2, ids.state_bits().0, 0).unwrap();
             assert_eq!(s[0].states.get(0), 27160);
             assert_eq!(s[1].states.bits, 15);
             assert_eq!(s[1].states.get(330), 13330);
