@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 107,
-  "note": "Batch 107 (2026-11-28, rank 3 G4: report ids 501, 503, 504, 507): four carry-overs, no code changes. G4 long-tail verification sweep COMPLETE (52/52, batches 101-107).",
+  "batch": 108,
+  "note": "Batch 108 (2026-11-28, rank 3 G5: report ids 361, 363, 364, 369): one real defect fixed (361, the 1.21.4 post-effect program form), three carry-overs. G5 render internals continues with batch 109.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -648,6 +648,26 @@
       "module": "widely named: recipebook",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 107, jar-verified 2026-11-28): ServerPlaceRecipe 1m \u2014 the inventory scan changes from reading the public Inventory.items field to calling Inventory.getNonEquipmentItems(), which in 1.21.5 returns exactly that same items field (now private). Same 36-slot main inventory in both versions; armour and offhand were separate fields in 1.21.4 and are still excluded. The Rust's recipe book scans self.inventory (game.rs:2175, the main inventory) for placement \u2014 the same list."
+    },
+    "361": {
+      "module": "crates/horizon-client-render/src/post_chain.rs",
+      "verdict": "closed",
+      "evidence": "FIXED (batch 108, jar-verified 2026-11-28): one real defect, the 1.21.5 render-pipeline rewrite. The Rust's Config::parse only accepted the 1.21.5 post-effect form (passes with vertex_shader + fragment_shader, uniforms as {block: [{name, type, value}]}), but 1.21.4's post_effect JSONs use \"program\": \"minecraft:post/<name>\" (PostChainConfig$Pass codec has a \"program\" field) and uniforms as an ARRAY of {name, values} with no type, so every vanilla 1.21.4 chain failed parse (\"pass N: no vertex_shader\") and the creeper/spider/invert spectator chains were dead. Fix: PassConfig gains program + overrides; parse accepts a program pass or explicit shaders and the uniforms array form; Chain::load resolves each program pass from its config in assets/<ns>/shaders/post/<name>.json (shaders + per-uniform type/defaults, pass overrides win) and builds the stand-in blocks from the static per-shader uniform-name order (BLOCK_UNIFORMS), without overwriting an object-form block. VERTEX extended with post/blit, post/sobel, post/blur, post/screenquad (all the same fullscreen quad, vs_quad_gl stands in); FRAGMENT extended with post/entity_sobel (no uniforms; oneTexel from the SamplerInfo sizes) and post/entity_outline_box_blur (EntityOutlineBoxBlurConfig=[BlurDir vec2], radius 2), with matching fs_entity_sobel / fs_entity_outline_box_blur WGSL stand-ins transliterated from the vanilla GLSL. A probe showed the 1.21.4 GLSL can never translate (plain uniforms, naga wants layout(binding=X)), so the stand-in path is the only way these effects render. The transparency chain stays a documented gap: 12 inputs and external layer targets the frame does not expose, and nothing requests it (improved_transparency defaults false). Tests: a_1_21_4_program_chain_parses, a_1_21_4_program_resolves_to_its_shaders (invert/blit/spider program configs, the jar's own text), a_1_21_4_invert_chain_inverts (renders the vanilla invert chain: red/green mix 0.8 towards cyan/magenta). Local: cargo test -p horizon-client-render --lib post_chain 16 passed; cargo check -p horizon-client clean."
+    },
+    "363": {
+      "module": "crates/horizon-client-render/src/gfx/entity_batch.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 108, jar-verified 2026-11-28): RenderType family (66 methods). 1.21.5 is the new-pipeline form (RenderPipeline instead of VertexFormat + Mode + CompositeState shards; EYES BiFunction(location, transparency) -> Function(location); OUTLINE BiFunction(location, cull) -> BiFunction(location, Boolean); clouds/worldBorder/sky/endSky/stars statics gone; DEBUG_LINE new; createWeather takes a RenderPipeline). The Rust's renderer is pipeline-based (wgpu RenderPipelines.*) and models the same types: world border (gfx.rs:4753, BlendFunction.OVERLAY, no culling), sky/stars (core_sky.rs: SKY ColorTargetState.DEFAULT no blending, STARS BlendFunction.OVERLAY src-alpha/one), outline (entity_outline.rs: OUTLINE_NO_CULL, no depth test), weather (weather.rs: WEATHER, depth-tested, no depth write), clouds (clouds.rs flat/fancy cells). Spot-checked against 1.21.4: eyes() uses TRANSLUCENT_TRANSPARENCY + RENDERTYPE_EYES_SHADER + COLOR_WRITE, and the Rust's entity_batch.rs:165 notes \"RenderTypes.eyes is blended like the other entities, not added\" -- matching translucent, not additive. The diff is the Java-side pipeline refactor, not a visual change."
+    },
+    "364": {
+      "module": "crates/horizon-assets/src/bake.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 108, jar-verified 2026-11-28): FaceBakery 26m + ItemModelGenerator 18m. FaceBakery is a pure internal refactor in 1.21.5: BlockFaceUV -> BlockElementFace$UVs record, new helpers (centerToCorner/cornerToCenter, xFromData/yFromData/zFromData, vectorFromData, extractPositions, defaultFaceUV), makeVertices/bakeVertex/fillVertex/rotateVertexBy/setupShape/bakeQuad signature changes (Vector3f -> Vector3fc read-only); the four changed bodies are extraction-only (calculateFacing inlines -> vectorFromData, recalculateWinding inlines -> xFromData/yFromData, applyElementRotation identical, applyModelRotation only Matrix4f -> Matrix4fc). The Rust's bake.rs implements facing(vertices) (line 178: cross product of (v1-v0)x(v2-v0), normalize, pick the Direction with the largest non-negative dot against [-ny, ny, -nz, nz, -nx, nx]) -- the calculateFacing equivalent (the triage flag \"calculateFacing NOT in bake.rs\" is answered: it lives there as facing()). ItemModelGenerator: instance -> static methods + bake return type BakedModel -> QuadCollection; the span algorithm bodies (getSpans/processFrames/createSideElements) differ only by slot renumbering + the UVs record construction."
+    },
+    "369": {
+      "module": "crates/horizon-client-render/src/clouds.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 108, jar-verified 2026-11-28): com/mojang/blaze3d/shaders/Uniform 48m -- the class does not exist in 1.21.5 at all (javap on the 1.21.5 jar returns empty); the whole GL uniform-upload machinery (UT_INT1/UT_FLOAT4 constants, markDirty, IntBuffer/FloatBuffer uploads) was removed by the 1.21.5 render rewrite. The Rust is wgpu-based with its own uniform buffers; clouds.rs's own Uniform struct (line 166) is the cloud mesh uniform, unrelated to the Java class. The report's module mapping to clouds.rs is heuristic (clouds.rs is the CloudRenderer: flat/fancy cell geometry, CLOUD_HEIGHT 192.33)."
     }
   }
 }

@@ -2,7 +2,11 @@
 //! `GameRenderer.preparePostEffects` / `applyPostEffects`): a `post_effect/*.json`
 //! names internal targets and passes (a vertex and a fragment shader, inputs read
 //! from targets, the target written, std140 uniform blocks) that run over the
-//! frame drawn so far, before the HUD.
+//! frame drawn so far, before the HUD. In 1.21.4 a pass names a single `program`
+//! instead (`shaders/post/<name>.json` gives its vertex and fragment shaders and
+//! the uniforms' types and defaults), and its `uniforms` are an array of
+//! `{name, values}` overrides rather than blocks; `Chain::load` resolves that
+//! form into the one below, so both read the same way from here on.
 //!
 //! The JSON is read at run time from the active resource root, so a resource pack
 //! can replace or add chains. So are the shaders the passes name: their GLSL
@@ -10,8 +14,10 @@
 //! by `post_glsl` and bound as vanilla binds it (`SamplerInfo`, `Globals`, the pass's
 //! own uniform blocks, a sampler per input: a target's colour or depth, or a
 //! `textures/effect/` image). Horizon's own WGSL stand-ins (`post_chain.wgsl`) for the
-//! vanilla `core/screenquad`, `post/rotscale`, `post/invert`, `post/blit`, `post/bits`,
-//! `post/color_convolve`, `post/box_blur` and `post/spiderclip` are only the fallback
+//! vanilla `core/screenquad`, `post/rotscale`, `post/blit`, `post/sobel`,
+//! `post/blur`, `post/screenquad`, `post/invert`, `post/blit`, `post/bits`,
+//! `post/color_convolve`, `post/box_blur`, `post/spiderclip`,
+//! `post/entity_sobel` and `post/entity_outline_box_blur` are only the fallback
 //! for a pass whose GLSL is missing or does not translate. A chain that cannot load
 //! (an unknown shader without a stand-in, a target the frame has no equivalent of)
 //! fails like a chain that does not compile (`GameRenderer.failedPostEffects`), once,
@@ -138,9 +144,16 @@ pub struct Input {
 pub struct PassConfig {
     pub vertex: String,
     pub fragment: String,
+    /// A 1.21.4 pass names one `program` instead of a vertex and a fragment
+    /// shader; `Chain::load` resolves it into `vertex`/`fragment` from the
+    /// program's config, so this is `None` once a pass is resolved.
+    pub program: Option<String>,
     pub inputs: Vec<Input>,
     pub output: String,
     pub uniforms: BTreeMap<String, Vec<Uniform>>,
+    /// A 1.21.4 pass's `uniforms` array (`{name, values}` overrides, typed by
+    /// the program's config); resolved into `uniforms` by `Chain::load`.
+    pub overrides: Vec<(String, Vec<f32>)>,
 }
 
 /// `PostChainConfig`.
@@ -292,23 +305,74 @@ impl Config {
                 });
             }
             let mut uniforms = BTreeMap::new();
-            if let Some(map) = p.get("uniforms").and_then(Value::as_object) {
-                for (block, list) in map {
-                    let list = list
-                        .as_array()
-                        .ok_or(format!("pass {n}: a bad uniform block"))?;
-                    uniforms.insert(
-                        block.clone(),
-                        list.iter().map(uniform).collect::<Result<Vec<_>, _>>()?,
-                    );
+            let mut overrides = Vec::new();
+            match p.get("uniforms") {
+                Some(map) if map.is_object() => {
+                    for (block, list) in map.as_object().unwrap() {
+                        let list = list
+                            .as_array()
+                            .ok_or(format!("pass {n}: a bad uniform block"))?;
+                        uniforms.insert(
+                            block.clone(),
+                            list.iter().map(uniform).collect::<Result<Vec<_>, _>>()?,
+                        );
+                    }
                 }
+                // 1.21.4's `PostChainConfig$Uniform`: an array of `{name,
+                // values}` overrides, typed by the program's config.
+                Some(list) if list.is_array() => {
+                    for u in list.as_array().unwrap() {
+                        let name = u
+                            .get("name")
+                            .and_then(Value::as_str)
+                            .ok_or(format!("pass {n}: a uniform without a name"))?;
+                        let values = u
+                            .get("values")
+                            .and_then(Value::as_array)
+                            .ok_or(format!("pass {n}: a uniform without values"))?;
+                        let values: Vec<f32> = values
+                            .iter()
+                            .map(|v| {
+                                v.as_f64().map(|x| x as f32).ok_or(format!(
+                                    "pass {n}: a uniform value that is not a number"
+                                ))
+                            })
+                            .collect::<Result<Vec<_>, _>>()?;
+                        overrides.push((name.to_owned(), values));
+                    }
+                }
+                _ => {}
             }
+            // A pass names a vertex and a fragment shader, or -- 1.21.4's
+            // `PostChainConfig$Pass` -- a single `program`, resolved by
+            // `Chain::load` into the two shaders from the program's config.
+            let (vertex, fragment, program) =
+                match (p.get("vertex_shader"), p.get("fragment_shader")) {
+                    (Some(_), Some(_)) => (text("vertex_shader")?, text("fragment_shader")?, None),
+                    (None, None) => {
+                        let program = p
+                            .get("program")
+                            .and_then(Value::as_str)
+                            .map(normalise)
+                            .ok_or(format!(
+                                "pass {n}: a vertex and a fragment shader, or a program"
+                            ))?;
+                        (String::new(), String::new(), Some(program))
+                    }
+                    _ => {
+                        return Err(format!(
+                            "pass {n}: a vertex and a fragment shader, or a program"
+                        ));
+                    }
+                };
             passes.push(PassConfig {
-                vertex: text("vertex_shader")?,
-                fragment: text("fragment_shader")?,
+                vertex,
+                fragment,
+                program,
                 inputs,
                 output: text("output")?,
                 uniforms,
+                overrides,
             });
         }
         Ok(Config { targets, passes })
@@ -333,14 +397,22 @@ impl Config {
 }
 
 /// A stand-in for a vanilla vertex shader: its entry point and uniform block.
-const VERTEX: [(&str, &str, &str); 2] = [
+const VERTEX: [(&str, &str, &str); 6] = [
     ("minecraft:core/screenquad", "vs_quad_gl", ""),
     ("minecraft:post/rotscale", "vs_rotscale", "RotScaleConfig"),
+    // 1.21.4's program configs name these as the vertex shader; all four are
+    // the same fullscreen quad (`ProjMat`, `OutSize`, plus `InSize` or a
+    // `BlurDir` the fragment stand-in computes itself), so the procedural
+    // quad stands in for each, with no uniform block of its own.
+    ("minecraft:post/blit", "vs_quad_gl", ""),
+    ("minecraft:post/sobel", "vs_quad_gl", ""),
+    ("minecraft:post/blur", "vs_quad_gl", ""),
+    ("minecraft:post/screenquad", "vs_quad_gl", ""),
 ];
 // The stand-ins are the fallback for a pass whose GLSL is missing or does not translate.
 /// A stand-in for a vanilla fragment shader: entry point, uniform block and the
 /// samplers it reads (`In`, then `Blur`).
-const FRAGMENT: [(&str, &str, &str, usize); 6] = [
+const FRAGMENT: [(&str, &str, &str, usize); 8] = [
     ("minecraft:post/invert", "fs_invert", "InvertConfig", 1),
     ("minecraft:post/blit", "fs_blit", "BlitConfig", 1),
     ("minecraft:post/bits", "fs_bits", "BitsConfig", 1),
@@ -357,6 +429,40 @@ const FRAGMENT: [(&str, &str, &str, usize); 6] = [
         "SpiderConfig",
         2,
     ),
+    // 1.21.4's entity-outline chain: the sobel edge pass has no uniforms of
+    // its own (its `oneTexel` comes from the `SamplerInfo` sizes), and the
+    // outline blur is the box blur with a fixed radius of 2.
+    ("minecraft:post/entity_sobel", "fs_entity_sobel", "", 1),
+    (
+        "minecraft:post/entity_outline_box_blur",
+        "fs_entity_outline_box_blur",
+        "EntityOutlineBoxBlurConfig",
+        1,
+    ),
+];
+
+/// A stand-in shader's uniform block, in the order `pack_block` packs it:
+/// the uniform names the WGSL stand-in reads, in the order its `fcf`/`vcf`
+/// indices expect. The values come from the 1.21.4 program config's
+/// declarations (its defaults, with a pass's `uniforms` array overriding by
+/// name); a shader with no entry here has no block to fill (its stand-in
+/// reads nothing, or its uniforms are the program's own defaults the
+/// stand-in hardcodes, like `color_convolve`'s `Saturation`).
+const BLOCK_UNIFORMS: &[(&str, &[&str])] = &[
+    (
+        "minecraft:post/rotscale",
+        &["InScale", "InOffset", "InRotation"],
+    ),
+    ("minecraft:post/invert", &["InverseAmount"]),
+    ("minecraft:post/blit", &["ColorModulate"]),
+    ("minecraft:post/bits", &["Resolution", "MosaicSize"]),
+    (
+        "minecraft:post/color_convolve",
+        &["RedMatrix", "GreenMatrix", "BlueMatrix"],
+    ),
+    ("minecraft:post/box_blur", &["BlurDir", "Radius"]),
+    ("minecraft:post/spiderclip", &["Scissor", "Vignette"]),
+    ("minecraft:post/entity_outline_box_blur", &["BlurDir"]),
 ];
 const SAMPLERS: [&str; 2] = ["In", "Blur"];
 
@@ -600,6 +706,143 @@ fn resource_path(root: &Path, id: &str) -> PathBuf {
         .join(format!("{path}.json"))
 }
 
+/// A 1.21.4 shader program's config (`ShaderProgramConfig`):
+/// `assets/<namespace>/shaders/<path>.json`.
+fn program_path(root: &Path, id: &str) -> PathBuf {
+    let (ns, path) = id.split_once(':').unwrap_or(("minecraft", id));
+    root.join("assets")
+        .join(ns)
+        .join("shaders")
+        .join(format!("{path}.json"))
+}
+
+/// A 1.21.4 program uniform's `values` as a [`Uniform`], by its declared
+/// `type` (a `float` with 1-4 values is a scalar or a vector of that size).
+fn uniform_from_values(ty: &str, values: &[f32]) -> Result<Uniform, String> {
+    match ty {
+        "int" if values.len() == 1 => Ok(Uniform::Int(values[0] as i32)),
+        "matrix4x4" if values.len() == 16 => {
+            Ok(Uniform::Matrix(values.try_into().map_err(|_| {
+                "a matrix4x4 of the wrong length".to_owned()
+            })?))
+        }
+        "float" | "vec2" | "vec3" | "vec4" => match values {
+            [v] => Ok(Uniform::Float(*v)),
+            [x, y] => Ok(Uniform::Vec2([*x, *y])),
+            [x, y, z] => Ok(Uniform::Vec3([*x, *y, *z])),
+            [x, y, z, w] => Ok(Uniform::Vec4([*x, *y, *z, *w])),
+            _ => Err(format!("a {ty} of the wrong length")),
+        },
+        _ => Err(format!("an unknown uniform type {ty}")),
+    }
+}
+
+/// Resolve one 1.21.4 `program` pass into its vertex and fragment shaders
+/// and the stand-in uniform blocks they read. The program's config gives the
+/// shaders and each uniform's type and default values; the pass's `uniforms`
+/// array overrides values by name. A shader with no stand-in (a pack's own)
+/// keeps whatever the chain's block-form `uniforms` gave it, if anything.
+fn resolve_program(root: &Path, n: usize, p: &mut PassConfig) -> Result<(), String> {
+    let Some(program) = p.program.clone() else {
+        return Ok(());
+    };
+    let text = std::fs::read_to_string(program_path(root, &program))
+        .map_err(|e| format!("pass {n}: no program {program}: {e}"))?;
+    let json: Value = serde_json::from_str(&text)
+        .map_err(|e| format!("pass {n}: a bad program {program}: {e}"))?;
+    let shader = |key: &str| {
+        json.get(key)
+            .and_then(Value::as_str)
+            .map(normalise)
+            .ok_or(format!("pass {n}: the program {program} has no {key}"))
+    };
+    p.vertex = shader("vertex")?;
+    p.fragment = shader("fragment")?;
+    // The program's defaults, by uniform name.
+    let mut defaults: BTreeMap<String, (String, Vec<f32>)> = BTreeMap::new();
+    if let Some(list) = json.get("uniforms").and_then(Value::as_array) {
+        for u in list {
+            let (Some(name), Some(ty), Some(values)) = (
+                u.get("name").and_then(Value::as_str),
+                u.get("type").and_then(Value::as_str),
+                u.get("values").and_then(Value::as_array),
+            ) else {
+                continue;
+            };
+            defaults.insert(
+                name.to_owned(),
+                (
+                    ty.to_owned(),
+                    values
+                        .iter()
+                        .filter_map(|v| v.as_f64().map(|x| x as f32))
+                        .collect(),
+                ),
+            );
+        }
+    }
+    let overrides: BTreeMap<&str, &[f32]> = p
+        .overrides
+        .iter()
+        .map(|(name, values)| (name.as_str(), values.as_slice()))
+        .collect();
+    // A shader id can sit in both tables (the blit program names
+    // `minecraft:post/blit` as its vertex and its fragment shader), so look
+    // each shader up in its own table: the vertex in VERTEX, the fragment in
+    // FRAGMENT.
+    let blocks = [
+        VERTEX
+            .iter()
+            .find(|(id, _, _)| *id == p.vertex)
+            .map(|(_, _, block)| *block),
+        FRAGMENT
+            .iter()
+            .find(|(id, _, _, _)| *id == p.fragment)
+            .map(|(_, _, block, _)| *block),
+    ];
+    for (shader, block) in [
+        (p.vertex.as_str(), blocks[0]),
+        (p.fragment.as_str(), blocks[1]),
+    ] {
+        let (Some(block), Some(names)) = (
+            block.filter(|b| !b.is_empty()),
+            BLOCK_UNIFORMS
+                .iter()
+                .find(|(id, _)| *id == shader)
+                .map(|(_, names)| *names),
+        ) else {
+            continue;
+        };
+        if p.uniforms.contains_key(block) {
+            continue;
+        }
+        let mut values = Vec::new();
+        for name in names {
+            let (ty, vals) = match overrides.get(name) {
+                Some(vals) => (
+                    defaults
+                        .get(*name)
+                        .map(|(ty, _)| ty.as_str())
+                        .unwrap_or("float"),
+                    *vals,
+                ),
+                None => match defaults.get(*name) {
+                    Some((ty, vals)) => (ty.as_str(), vals.as_slice()),
+                    None => {
+                        return Err(format!(
+                            "pass {n}: the uniform {name} of {shader} has no value"
+                        ));
+                    }
+                },
+            };
+            values.push(uniform_from_values(ty, vals).map_err(|e| format!("pass {n}: {e}"))?);
+        }
+        p.uniforms.insert(block.to_owned(), values);
+    }
+    p.program = None;
+    Ok(())
+}
+
 impl PostEffects {
     pub fn new(device: &wgpu::Device) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -830,6 +1073,12 @@ impl PostEffects {
             return Ok(None);
         };
         let mut config = Config::parse(&text)?;
+        // 1.21.4 passes name a `program`: resolve them before the passes run.
+        for (n, p) in config.passes.iter_mut().enumerate() {
+            if p.program.is_some() {
+                resolve_program(root, n, p)?;
+            }
+        }
         for (target, t) in &extras.targets {
             config
                 .targets
@@ -2085,6 +2334,158 @@ mod tests {
         let names = ["minecraft:unknown".to_owned()];
         assert!(!run(&device, &queue, &mut effects, &root, &names).0);
         assert!(effects.failed.contains("minecraft:unknown"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// The exact `invert` chain from 1.21.4's jar, with its `program` passes
+    /// and `uniforms` arrays.
+    const INVERT_1214: &str = r#"{"targets":{"swap":{}},"passes":[
+        {"program":"minecraft:post/invert","inputs":[{"sampler_name":"In","target":"minecraft:main"}],
+         "output":"swap","uniforms":[{"name":"InverseAmount","values":[0.8]}]},
+        {"program":"minecraft:post/blit","inputs":[{"sampler_name":"In","target":"swap"}],
+         "output":"minecraft:main"}]}"#;
+
+    /// 1.21.4's `program` passes parse: the program id and the `uniforms`
+    /// array survive, and the shaders stay empty until they are resolved.
+    #[test]
+    fn a_1_21_4_program_chain_parses() {
+        let config = Config::parse(INVERT_1214).unwrap();
+        assert_eq!(config.passes.len(), 2);
+        let first = &config.passes[0];
+        assert_eq!(first.program.as_deref(), Some("minecraft:post/invert"));
+        assert!(first.vertex.is_empty() && first.fragment.is_empty());
+        assert_eq!(
+            first.overrides,
+            vec![("InverseAmount".to_owned(), vec![0.8])]
+        );
+        let second = &config.passes[1];
+        assert_eq!(second.program.as_deref(), Some("minecraft:post/blit"));
+        assert!(second.overrides.is_empty());
+    }
+
+    /// Write 1.21.4's program configs (the jar's own text) into a scratch
+    /// root's `shaders/post/`.
+    fn programs_1214(root: &Path) {
+        let dir = root.join("assets/minecraft/shaders/post");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("invert.json"),
+            r#"{"vertex":"minecraft:post/blit","fragment":"minecraft:post/invert","samplers":[{"name":"InSampler"}],
+                "uniforms":[{"name":"ProjMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]},
+                {"name":"InSize","type":"float","count":2,"values":[1.0,1.0]},
+                {"name":"OutSize","type":"float","count":2,"values":[1.0,1.0]},
+                {"name":"InverseAmount","type":"float","count":1,"values":[0.0]}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("blit.json"),
+            r#"{"vertex":"minecraft:post/blit","fragment":"minecraft:post/blit","samplers":[{"name":"InSampler"}],
+                "uniforms":[{"name":"ProjMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]},
+                {"name":"OutSize","type":"float","count":2,"values":[1.0,1.0]},
+                {"name":"ColorModulate","type":"float","count":4,"values":[1.0,1.0,1.0,1.0]}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("spider.json"),
+            r#"{"vertex":"minecraft:post/rotscale","fragment":"minecraft:post/spiderclip",
+                "samplers":[{"name":"InSampler"},{"name":"BlurSampler"}],
+                "uniforms":[{"name":"ProjMat","type":"matrix4x4","count":16,"values":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]},
+                {"name":"InSize","type":"float","count":2,"values":[1.0,1.0]},
+                {"name":"InScale","type":"float","count":2,"values":[1.0,1.0]},
+                {"name":"InOffset","type":"float","count":2,"values":[0.0,0.0]},
+                {"name":"InRotation","type":"float","count":1,"values":[0.0]},
+                {"name":"Scissor","type":"float","count":4,"values":[0.0,0.0,1.0,1.0]},
+                {"name":"Vignette","type":"float","count":4,"values":[0.0,0.0,1.0,1.0]},
+                {"name":"OutSize","type":"float","count":2,"values":[1.0,1.0]}]}"#,
+        )
+        .unwrap();
+    }
+
+    /// Resolving a 1.21.4 program fills in both shaders and the stand-in
+    /// blocks, taking each value from the pass's override or the program's
+    /// default: the invert pass's `InverseAmount` 0.8, the blit pass's
+    /// `ColorModulate` default, and a spider pass's rotation default.
+    #[test]
+    fn a_1_21_4_program_resolves_to_its_shaders() {
+        let root = scratch("invert-1214", INVERT_1214);
+        programs_1214(&root);
+        let mut config = Config::parse(INVERT_1214).unwrap();
+        for (n, p) in config.passes.iter_mut().enumerate() {
+            resolve_program(&root, n, p).unwrap();
+        }
+        let first = &config.passes[0];
+        assert_eq!(first.vertex, "minecraft:post/blit");
+        assert_eq!(first.fragment, "minecraft:post/invert");
+        assert_eq!(
+            first.uniforms.get("InvertConfig"),
+            Some(&vec![Uniform::Float(0.8)])
+        );
+        let second = &config.passes[1];
+        assert_eq!(second.vertex, "minecraft:post/blit");
+        assert_eq!(second.fragment, "minecraft:post/blit");
+        assert_eq!(
+            second.uniforms.get("BlitConfig"),
+            Some(&vec![Uniform::Vec4([1.0, 1.0, 1.0, 1.0])])
+        );
+        // The spider pass of vanilla's spider chain: the vertex block takes
+        // the overrides, the rotation falls back to the program default.
+        let mut config = Config::parse(
+            r#"{"passes":[{"program":"minecraft:post/spider",
+                "inputs":[{"sampler_name":"In","target":"minecraft:main"},{"sampler_name":"Blur","target":"swap"}],
+                "output":"swap","uniforms":[
+                {"name":"InScale","values":[1.25,2.0]},{"name":"InOffset","values":[-0.125,-0.1]},
+                {"name":"Scissor","values":[0.0,0.0,1.0,1.0]},{"name":"Vignette","values":[0.1,0.1,0.9,0.9]}]}]}"#,
+        )
+        .unwrap();
+        resolve_program(&root, 0, &mut config.passes[0]).unwrap();
+        let spider = &config.passes[0];
+        assert_eq!(spider.vertex, "minecraft:post/rotscale");
+        assert_eq!(spider.fragment, "minecraft:post/spiderclip");
+        assert_eq!(
+            spider.uniforms.get("RotScaleConfig"),
+            Some(&vec![
+                Uniform::Vec2([1.25, 2.0]),
+                Uniform::Vec2([-0.125, -0.1]),
+                Uniform::Float(0.0),
+            ])
+        );
+        assert_eq!(
+            spider.uniforms.get("SpiderConfig"),
+            Some(&vec![
+                Uniform::Vec4([0.0, 0.0, 1.0, 1.0]),
+                Uniform::Vec4([0.1, 0.1, 0.9, 0.9]),
+            ])
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// The 1.21.4 invert chain renders end to end: red and green mix 0.8 of
+    /// the way towards cyan and magenta.
+    #[test]
+    fn a_1_21_4_invert_chain_inverts() {
+        let Some((device, queue)) = device() else {
+            return;
+        };
+        let root = scratch("invert-1214-render", INVERT_1214);
+        programs_1214(&root);
+        let mut effects = PostEffects::new(&device);
+        let [top, bottom] = run_halves(
+            &device,
+            &queue,
+            &mut effects,
+            &root,
+            &["minecraft:invert-1214-render".to_owned()],
+        );
+        let near = |a: u8, b: u8| a.abs_diff(b) <= 3;
+        assert!(
+            near(top[0], 51) && near(top[1], 204) && near(top[2], 204),
+            "{top:?}"
+        );
+        assert!(
+            near(bottom[0], 204) && near(bottom[1], 51) && near(bottom[2], 204),
+            "{bottom:?}"
+        );
+        assert!(effects.failed.is_empty());
         std::fs::remove_dir_all(root).unwrap();
     }
 

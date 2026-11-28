@@ -1,6 +1,8 @@
 // The built-in stand-ins for the vanilla post shaders a `post_effect` chain can
-// name (`core/screenquad`, `post/rotscale`, `post/invert`, `post/blit`,
-// `post/bits`, `post/color_convolve`, `post/box_blur`, `post/spiderclip`).
+// name (`core/screenquad`, `post/rotscale`, `post/blit`, `post/sobel`,
+// `post/blur`, `post/screenquad`, `post/invert`, `post/blit`, `post/bits`,
+// `post/color_convolve`, `post/box_blur`, `post/spiderclip`,
+// `post/entity_sobel`, `post/entity_outline_box_blur`).
 // Targets keep GL's rows (row 0 is the bottom edge): the passes draw with clip y
 // negated (`vs_quad_gl`, `vs_rotscale`) and read their textures as they are;
 // `vs_quad` with `fs_blit` is the flip between the frame and a chain's `main`.
@@ -131,4 +133,30 @@ fn corner(i: u32) -> vec2<f32> {
     if s.x > vignette.z { o = mix(blur_texel, o, (scissor.z - s.x) / (scissor.z - vignette.z)); }
     if s.y > vignette.w { o = mix(blur_texel, o, (scissor.w - s.y) / (scissor.w - vignette.w)); }
     return vec4(o.rgb, 1.0);
+}
+
+@fragment fn fs_entity_sobel(in: Out) -> @location(0) vec4<f32> {
+    // `sobel.vsh`'s `oneTexel`: one over the input's size.
+    let texel = 1.0 / info[0].zw;
+    let c = read_in(in.uv);
+    let l = read_in(in.uv - vec2(texel.x, 0.0));
+    let r = read_in(in.uv + vec2(texel.x, 0.0));
+    let u = read_in(in.uv - vec2(0.0, texel.y));
+    let d = read_in(in.uv + vec2(0.0, texel.y));
+    let total = clamp(abs(c.a - l.a) + abs(c.a - r.a) + abs(c.a - u.a) + abs(c.a - d.a), 0.0, 1.0);
+    let rgb = c.rgb * c.a + l.rgb * l.a + r.rgb * r.a + u.rgb * u.a + d.rgb * d.a;
+    return vec4(rgb * 0.2, total);
+}
+
+@fragment fn fs_entity_outline_box_blur(in: Out) -> @location(0) vec4<f32> {
+    // `blur.vsh`'s `sampleStep`: one texel times the blur direction.
+    let step = (1.0 / info[0].zw) * vec2(fcf(0u), fcf(1u));
+    let radius = 2.0;
+    var blurred = vec4(0.0);
+    for (var a = -radius + 0.5; a <= radius; a += 2.0) {
+        blurred += read_in(in.uv + step * a);
+    }
+    blurred += read_in(in.uv + step * radius) / 2.0;
+    // Vanilla divides the colour by `radius + 0.5` but keeps the raw alpha.
+    return vec4((blurred / (radius + 0.5)).rgb, blurred.a);
 }

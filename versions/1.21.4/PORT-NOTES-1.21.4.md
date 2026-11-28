@@ -7166,3 +7166,50 @@ reads Inventory.items through the new getNonEquipmentItems() getter,
 which returns the same 36-slot list; the Rust scans the same main
 inventory. Rank 3 after batch 107: 13 accepted + 125 closed = 138/149;
 total 485/548. G5 (render internals, batches 108-112) is next.
+
+Batch 108 (2026-11-28, rank 3 G5: report ids 361, 363, 364, 369): one
+real defect fixed (361), three carry-overs. 361 (post_chain.rs): the
+1.21.5 render-pipeline rewrite -- the Rust's Config::parse only
+accepted the 1.21.5 post-effect form, but 1.21.4's post_effect JSONs
+use "program": "minecraft:post/<name>" and uniforms as an array of
+{name, values}, so every vanilla 1.21.4 chain failed parse and the
+creeper/spider/invert spectator chains were dead. Fixed: PassConfig
+gains program + overrides; parse accepts a program pass or explicit
+shaders and the uniforms array form; Chain::load resolves each program
+pass from its config in assets/<ns>/shaders/post/<name>.json (shaders
+plus per-uniform type/defaults, pass overrides win) and builds the
+stand-in blocks from the static per-shader uniform-name order
+(BLOCK_UNIFORMS). VERTEX extended with post/blit, post/sobel,
+post/blur, post/screenquad (all the same fullscreen quad, vs_quad_gl
+stands in); FRAGMENT extended with post/entity_sobel (no uniforms;
+oneTexel from the SamplerInfo sizes) and
+post/entity_outline_box_blur (EntityOutlineBoxBlurConfig=[BlurDir
+vec2], radius 2), with matching fs_entity_sobel /
+fs_entity_outline_box_blur WGSL stand-ins transliterated from the
+vanilla GLSL. A probe showed the 1.21.4 GLSL can never translate
+(plain uniforms, naga wants layout(binding=X)), so the stand-in path
+is the only way these effects render. The transparency chain stays a
+documented gap: 12 inputs and external layer targets the frame does
+not expose, and nothing requests it (improved_transparency defaults
+false). Tests: a_1_21_4_program_chain_parses,
+a_1_21_4_program_resolves_to_its_shaders (invert/blit/spider program
+configs, the jar's own text), a_1_21_4_invert_chain_inverts (renders
+the vanilla invert chain: red/green mix 0.8 towards cyan/magenta);
+local post_chain 16 passed, cargo check -p horizon-client clean. 363
+(entity_batch.rs): RenderType family, the 1.21.5 new-pipeline form
+(RenderPipeline instead of VertexFormat + Mode + shards; EYES/OUTLINE
+now take one argument; clouds/worldBorder/sky/endSky/stars statics
+gone); the Rust is pipeline-based and models the same types (world
+border OVERLAY no culling, sky no blending, stars OVERLAY, outline no
+depth test, weather depth-tested no depth write, clouds flat/fancy);
+eyes() is translucent, not additive, in both. 364 (bake.rs):
+FaceBakery is a pure 1.21.5 internal refactor (BlockFaceUV -> UVs
+record, Vector3f -> Vector3fc, extraction-only body changes); the
+Rust's bake.rs facing() is the calculateFacing equivalent.
+ItemModelGenerator went instance -> static with the same span
+algorithm. 369 (clouds.rs): com/mojang/blaze3d/shaders/Uniform does
+not exist in 1.21.5 at all -- the whole GL uniform-upload machinery
+was removed by the render rewrite; the Rust is wgpu-based, and
+clouds.rs's own Uniform struct is the cloud mesh uniform, unrelated.
+Rank 3 after batch 108: 13 accepted + 129 closed = 142/149; total
+489/548.
