@@ -6943,3 +6943,23 @@ shape for the review batches.
   values/defaults. The Rust already reads BiomeType as WARM/COLD text,
   Integrity as float default 0.0, IsLarge as flag
   (saved_templates.rs).
+  Batch 99 (2026-11-28, rank 3 G3: report ids 454, 455, 475, 476). Rank 3 now
+  72/149 (13 accepted + 59 closed); total 432/548. All four CARRY-OVER,
+  no code change -- the same 1.21.5 NBT accessor modernization as
+  batches 97-98. 454 (saved_templates.rs): ShipwreckPiece reads
+  isBeached via getBoolean vs getBooleanOr(name, false) (identical);
+  Rot via putString(name) vs store(name, LEGACY_CODEC) on save and
+  valueOf(getString) vs read(name, LEGACY_CODEC).orElseThrow() on load
+  (same name strings). The Rust already reads flag(tag, "isBeached")
+  and Rot by saved name, and writes ("isBeached", flag) + Rot. 455
+  (simple.rs): IglooPiece Rot the same putString/store + valueOf/read
+  pair; ScatteredFeaturePiece reads Width/Height/Depth/HPos via getInt
+  vs getIntOr(name, 0) (identical defaults; heightPosition is preset
+  -1 then overwritten by HPos in both versions). The Rust writes
+  Width/Height/Depth/HPos as ints on save, reads Rot by saved name on
+  load, and recomputes height position. 475 (end_city.rs): EndCityPiece
+  Rot the same pair; lambda also reads OW via getBoolean vs
+  getBooleanOr(false) (identical). The Rust already reads flag(tag,
+  "OW") and Rot by saved name. 476 (nether_fossil.rs):
+  NetherFossilPiece Rot the same putString/store + valueOf/read pair;
+  the Rust reads Rot by saved name ("nefos" handler).

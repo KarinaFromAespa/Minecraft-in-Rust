@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 98,
-  "note": "Batch 98 (2026-11-28, rank 3 G3: report ids 434, 443, 452, 453): all four CARRY-OVER -- the same 1.21.5 NBT accessor modernization as batch 97 (getInt/getFloat/getBoolean -> getIntOr/getFloatOr/getBooleanOr, putString/valueOf -> store/read(LEGACY_CODEC)), plus SlabBlock's behavior-identical getShape switch restructure and canPlaceLiquid Player->LivingEntity widening; the Rust already implements the 1.21.4 forms (fluids.rs can_place_liquid, saved_templates.rs Rot/Mi/BiomeType/Integrity/IsLarge, simple.rs Rot/Mi writes). No code changes.",
+  "batch": 99,
+  "note": "Batch 99 (2026-11-28, rank 3 G3: report ids 454, 455, 475, 476): all four CARRY-OVER -- the same 1.21.5 NBT accessor modernization as batches 97-98 (getBoolean/getInt -> getBooleanOr/getIntOr, putString/valueOf -> store/read(LEGACY_CODEC)) with identical bytes and values; the Rust already reads/writes the 1.21.4 forms (saved_templates.rs, simple.rs). No code changes.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -363,6 +363,26 @@
       "module": "crates/horizon-world/src/worldgen/structure/ocean_ruin.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 98, jar-verified 2026-11-28): OceanRuinPieces$OceanRuinPiece -- create() is the 1.21.5 NBT accessor modernization only: Rot via Rotation.valueOf(getString) -> read(Rotation.LEGACY_CODEC).orElseThrow(); Integrity via getFloat -> getFloatOr(0.0f); BiomeType via Type.valueOf(getString) -> read(Type.LEGACY_CODEC).orElseThrow(); IsLarge via getBoolean -> getBooleanOr(false); all identical values/defaults. The Rust already reads BiomeType as WARM/COLD text, Integrity as float default 0.0, IsLarge as flag (saved_templates.rs:109,114,119). No code change."
+    },
+    "454": {
+      "module": "crates/horizon-world/src/worldgen/structure/saved_templates.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 99, jar-verified 2026-11-28): ShipwreckPieces$ShipwreckPiece -- NBT ctor reads isBeached via getBoolean in 1.21.4, via getBooleanOr(name, false) in 1.21.5 (old getBoolean returns false for a missing key; identical); addAdditionalSaveData writes Rot via putString(name) vs store(name, Rotation.LEGACY_CODEC) (same name string; isBeached putBoolean unchanged); lambda$new$0 reads Rotation via valueOf(getString) vs read(name, LEGACY_CODEC).orElseThrow() (same values). The Rust already reads flag(tag, \"isBeached\") and Rot by saved name (saved_templates.rs) and writes (\"isBeached\", flag) + Rot (simple.rs:248). No code change."
+    },
+    "455": {
+      "module": "crates/horizon-world/src/worldgen/structure/simple.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 99, jar-verified 2026-11-28): IglooPieces$IglooPiece + ScatteredFeaturePiece -- IglooPiece addAdditionalSaveData writes Rot via putString(name) vs store(name, LEGACY_CODEC); lambda$new$0 reads Rotation via valueOf(getString) vs read(name, LEGACY_CODEC).orElseThrow(); ScatteredFeaturePiece NBT ctor reads Width/Height/Depth/HPos via getInt vs getIntOr(name, 0) (old getInt returns 0 for a missing key; identical; heightPosition is preset -1 then overwritten by HPos in both versions). The Rust writes Width/Height/Depth/HPos as ints on save (simple.rs:462-465), reads Rot by saved name on load, and recomputes height position (simple.rs:500). No code change."
+    },
+    "475": {
+      "module": "crates/horizon-world/src/worldgen/structure/end_city.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 99, jar-verified 2026-11-28): EndCityPieces$EndCityPiece -- addAdditionalSaveData writes Rot via putString(name) vs store(name, LEGACY_CODEC); lambda$new$0 reads OW via getBoolean vs getBooleanOr(name, false) and Rot via valueOf(getString) vs read(name, LEGACY_CODEC).orElseThrow() (identical values/defaults). The Rust already reads flag(tag, \"OW\") (saved_templates.rs:159) and Rot by saved name. No code change."
+    },
+    "476": {
+      "module": "crates/horizon-world/src/worldgen/structure/nether_fossil.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 99, jar-verified 2026-11-28): NetherFossilPieces$NetherFossilPiece -- addAdditionalSaveData writes Rot via putString(name) vs store(name, LEGACY_CODEC); lambda$new$0 reads Rotation via valueOf(getString) vs read(name, LEGACY_CODEC).orElseThrow() (same values). The Rust already reads Rot by saved name (saved_templates.rs \"nefos\" handler). No code change."
     }
   }
 }
