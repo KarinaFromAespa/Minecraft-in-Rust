@@ -5,7 +5,10 @@ use std::{collections::HashMap, path::Path};
 
 type Entry = (String, u32, u32);
 
-/// `SpriteSourceList.list` and `SpriteResourceLoader.loadSprite` for the non-mipmapped ITEMS atlas.
+/// `SpriteSourceList.list` and `SpriteResourceLoader.loadSprite` for the non-mipmapped item
+/// sprites. 1.21.7 has no `minecraft:items` atlas: its item sprites stitch into the blocks
+/// atlas (`blocks.json`'s `item/` directory source), so this reads that atlas and keeps only
+/// its `item/*` sprites.
 pub(super) fn load(
     root: &Path,
     padding: u32,
@@ -13,7 +16,7 @@ pub(super) fn load(
 ) -> crate::Result<HashMap<String, Rect>> {
     let sources = atlas_sources::atlases(root);
     let sources = sources
-        .get("minecraft:items")
+        .get("minecraft:blocks")
         .map(Vec::as_slice)
         .unwrap_or(&[]);
     let textures = atlas_sources::list_textures(root);
@@ -23,6 +26,12 @@ pub(super) fn load(
     let mut entries = vec![("minecraft:missingno".into(), 16, 16)];
     let mut names = Vec::new();
     for (id, origin) in atlas_sources::list(sources, &textures) {
+        // The blocks atlas also holds block, conduit and trim sprites; only its item
+        // sprites belong in the glint atlas.
+        let path = id.split_once(':').map(|(_, path)| path).unwrap_or(&id);
+        if !path.starts_with("item/") {
+            continue;
+        }
         names.push(id.clone());
         let dimensions = match &origin {
             atlas_sources::SpriteOrigin::File(texture) => (|| {

@@ -22,7 +22,7 @@ fn fixture(name: &str) -> PathBuf {
     };
     write("items.json", b"{}");
     write(
-        "assets/minecraft/atlases/items.json",
+        "assets/minecraft/atlases/blocks.json",
         br#"{"sources":[
         {"type":"directory","source":"item","prefix":"item/"},
         {"type":"single","resource":"test:source","sprite":"test:item/enchanted_book"},
@@ -296,15 +296,15 @@ fn invalid_and_generated_sprites_match_vanilla() {
         )
         .unwrap();
     }
-    let path = root.join("assets/minecraft/atlases/items.json");
+    let path = root.join("assets/minecraft/atlases/blocks.json");
     let mut atlas: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
     atlas["sources"].as_array_mut().unwrap().extend([
         serde_json::json!({"type":"single","resource":"test:absent","sprite":"test:missing_alias"}),
-        serde_json::json!({"type":"paletted_permutations","textures":["test:trim"],"palette_key":"test:key","permutations":{"red":"test:red"}}),
+        serde_json::json!({"type":"paletted_permutations","textures":["test:item/trim"],"palette_key":"test:key","permutations":{"red":"test:red"}}),
     ]);
     fs::write(path, atlas.to_string()).unwrap();
     for (name, w, h, color) in [
-        ("trim", 8, 16, [255; 4]),
+        ("item/trim", 8, 16, [255; 4]),
         ("palettes/key", 1, 1, [255; 4]),
         ("palettes/red", 1, 1, [255, 0, 0, 255]),
     ] {
@@ -329,7 +329,7 @@ fn invalid_and_generated_sprites_match_vanilla() {
         [r.u0, r.v0, r.u1, r.v1],
         [1.0 / 128.0, 1.0 / 64.0, 17.0 / 128.0, 33.0 / 64.0]
     );
-    let r = atlas["test:trim_red"];
+    let r = atlas["test:item/trim_red"];
     assert_eq!(
         [r.u0, r.v0, r.u1, r.v1],
         [19.0 / 128.0, 37.0 / 64.0, 27.0 / 128.0, 53.0 / 64.0]
@@ -411,16 +411,18 @@ fn glint_atlas_reads_prepared_images_and_metadata_together() {
 }
 
 #[test]
-#[ignore = "requires the player's prepared pinned 26.3 resources in HORIZON_TEST_RESOURCES"]
+#[ignore = "requires the player's prepared pinned 1.21.7 resources in HORIZON_TEST_RESOURCES"]
 fn prepared_item_atlas_matches_pinned_vanilla() {
     let root =
         PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").expect("prepared resources"));
     let atlas = glint_atlas::load(&root, 1, 16384).unwrap();
-    assert_eq!(atlas.len(), 896);
+    // 1.21.7 stitches its item sprites into the blocks atlas: the 747
+    // `textures/item/*.png` of the 1.21.7 jar, plus missingno, in a 512x512 atlas.
+    assert_eq!(atlas.len(), 748);
     let book = atlas["item/enchanted_book"];
     assert_eq!(
         [book.u0, book.v0, book.u1, book.v1],
-        [437.0 / 1024.0, 163.0 / 512.0, 453.0 / 1024.0, 179.0 / 512.0]
+        [365.0 / 512.0, 109.0 / 512.0, 381.0 / 512.0, 125.0 / 512.0]
     );
     let glint = Glint {
         millis: 0.0,
@@ -429,7 +431,7 @@ fn prepared_item_atlas_matches_pinned_vanilla() {
         scale: 8.0,
     };
     let uv = glint.uv([book.u0, book.v0]);
-    for (got, want) in uv.into_iter().zip([2.919935, 3.101028]) {
+    for (got, want) in uv.into_iter().zip([5.320737, 2.667588]) {
         assert!((got - want).abs() < 1e-5);
     }
 }
