@@ -1968,21 +1968,22 @@ mod tests {
         );
     }
 
-    /// Trades: every profession level set yields offers.
+    /// Trades: every profession level set yields offers, and so do the
+    /// wandering trader's three sets.
     ///
-    /// IGNORED: vanilla 1.21.7's default trades are hardcoded in
+    /// Vanilla 1.21.7's default trades are hardcoded in
     /// `VillagerTrades.TRADES` (javap-verified: a static profession ->
     /// level -> `ItemListing[]` map, with a separate `EXPERIMENTAL_TRADES`
     /// for the trade-rebalance experiment) and the 1.21.7 server jar ships
-    /// no `data/minecraft/trade_set/` or `villager_trade/` files — the
-    /// laptop's prepared root has neither — so the port's data-driven
-    /// `Trades` loads no sets and every profession yields no offers.
-    /// In-game villagers likewise offer nothing
-    /// (`game/trading.rs::ensure_offers` returns empty when the set is
-    /// absent). Porting the hardcoded table (13 professions x 5 levels)
-    /// is a separate job; remove this ignore when it lands.
+    /// no `data/minecraft/trade_set/` or `villager_trade/` files, so the
+    /// port seeds the table from the transcription in
+    /// `merchant_hardcoded` (`Trades::load` fills ids the data-driven
+    /// load did not provide). A few seeds per set: the picks are random,
+    /// and a pick can land on a listing this context cannot offer (a
+    /// treasure map with no world to search, or a trade for another
+    /// villager type), so one seed's two picks landing on dead listings
+    /// says nothing about the set.
     #[test]
-    #[ignore = "villager trades are hardcoded in 1.21.7 vanilla (VillagerTrades.TRADES); the jar ships no trade_set/villager_trade data, so the port's data-driven Trades loads no sets and every profession yields no offers"]
     fn trades_from_prepared_data() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.local/horizon-client")
@@ -2002,22 +2003,30 @@ mod tests {
             origin: [0.0; 3],
             maps: None,
         };
-        for p in crate::merchant::PROFESSIONS {
-            let set = crate::merchant::Trades::set_for(p, 1);
-            let mut random = crate::merchant::sequence_random(
-                12345,
-                &format!(
-                    "minecraft:trade_set/{}",
-                    set.trim_start_matches("minecraft:")
-                ),
-            );
-            assert!(
+        let yields_offers = |set: &str| -> bool {
+            (0..5i64).any(|attempt| {
+                let mut random = crate::merchant::sequence_random(
+                    12345 + attempt,
+                    &format!(
+                        "minecraft:trade_set/{}",
+                        set.trim_start_matches("minecraft:")
+                    ),
+                );
                 !data
                     .trades
-                    .offers_from_set(&ctx, &set, &mut random)
-                    .is_empty(),
-                "{p}"
-            );
+                    .offers_from_set(&ctx, set, &mut random)
+                    .is_empty()
+            })
+        };
+        for p in crate::merchant::PROFESSIONS {
+            for level in 1..=5 {
+                let set = crate::merchant::Trades::set_for(p, level);
+                assert!(yields_offers(&set), "{p} level {level}");
+            }
+        }
+        for set in ["buying", "uncommon", "common"] {
+            let set = format!("minecraft:wandering_trader/{set}");
+            assert!(yields_offers(&set), "{set}");
         }
     }
 
