@@ -31,12 +31,11 @@ const LOAD: u8 = 3;
 const MODE: u8 = 4;
 const DETECT: u8 = 5;
 const ENTITIES: u8 = 6;
-const STRICT: u8 = 7;
-const MIRROR: u8 = 8;
-const SHOW_AIR: u8 = 9;
-const SHOW_BOX: u8 = 10;
-/// The four rotation buttons, 11 to 14, in `Rotation` order.
-const ROTATION: u8 = 11;
+const MIRROR: u8 = 7;
+const SHOW_AIR: u8 = 8;
+const SHOW_BOX: u8 = 9;
+/// The four rotation buttons, 10 to 13, in `Rotation` order.
+const ROTATION: u8 = 10;
 
 /// `StructureBlockEditScreen.DEFAULT_MODES`: every mode but DATA.
 const DEFAULT_MODES: [StructureMode; 3] = [
@@ -51,7 +50,6 @@ struct Initial {
     rotation: Rotation,
     mode: StructureMode,
     ignore_entities: bool,
-    strict: bool,
     show_air: bool,
     show_bounding_box: bool,
 }
@@ -94,7 +92,6 @@ impl StructureEditor {
                 rotation: b.rotation,
                 mode: b.mode,
                 ignore_entities: b.ignore_entities,
-                strict: b.strict,
                 show_air: b.show_air,
                 show_bounding_box: b.show_bounding_box,
             },
@@ -121,7 +118,6 @@ impl StructureEditor {
             rotation: rotation_ordinal(b.rotation),
             data: self.value(DATA).to_owned(),
             ignore_entities: b.ignore_entities,
-            strict: b.strict,
             show_air: b.show_air,
             show_bounding_box: b.show_bounding_box,
             integrity: self.value(INTEGRITY).trim().parse().unwrap_or(1.0),
@@ -216,7 +212,6 @@ impl Editor for StructureEditor {
                 tr("structure_block.button.load"),
                 true,
             ));
-            items.push(button(STRICT, right, 50.0, 120.0, on_off(b.strict), true));
             items.push(button(
                 MIRROR,
                 mid - 20.0,
@@ -309,7 +304,6 @@ impl Editor for StructureEditor {
             ));
             items.push(edit(INTEGRITY, mid - 152.0, 120.0, 80.0));
             items.push(edit(SEED, mid - 72.0, 120.0, 80.0));
-            items.push(label("structure_block.strict", mid + 154.0, 110.0, true));
             items.push(label(
                 "structure_block.show_boundingbox",
                 mid + 154.0,
@@ -371,14 +365,13 @@ impl Editor for StructureEditor {
                 };
             }
             ENTITIES => b.ignore_entities = !b.ignore_entities,
-            STRICT => b.strict = !b.strict,
             MIRROR => {
                 let all = [Mirror::None, Mirror::LeftRight, Mirror::FrontBack];
                 b.mirror = cycle(&all, b.mirror, delta);
             }
             SHOW_AIR => b.show_air = !b.show_air,
             SHOW_BOX => b.show_bounding_box = !b.show_bounding_box,
-            ROTATION..=14 => {
+            ROTATION..=13 => {
                 if let Some(r) = structure_block::rotation_from_ordinal(i32::from(id - ROTATION)) {
                     b.rotation = r;
                 }
@@ -404,7 +397,6 @@ impl Editor for StructureEditor {
             b.rotation = i.rotation;
             b.mode = i.mode;
             b.ignore_entities = i.ignore_entities;
-            b.strict = i.strict;
             b.show_air = i.show_air;
             b.show_bounding_box = i.show_bounding_box;
         }
@@ -466,22 +458,17 @@ mod tests {
         let mut editor = StructureEditor::new(&block);
         let mut entity = BlockEntity::StructureBlock(Box::new(block));
         editor.press(&mut entity, (0, 0, 0), ROTATION + 2, false, false);
-        editor.press(&mut entity, (0, 0, 0), STRICT, false, false);
         editor.press(&mut entity, (0, 0, 0), MODE, false, false);
         let BlockEntity::StructureBlock(b) = &entity else {
             unreachable!()
         };
         assert_eq!(b.rotation, Rotation::Clockwise180);
-        assert!(b.strict);
         assert_eq!(b.mode, StructureMode::Corner);
         editor.cancel(&mut entity);
         let BlockEntity::StructureBlock(b) = &entity else {
             unreachable!()
         };
-        assert_eq!(
-            (b.rotation, b.strict, b.mode),
-            (Rotation::None, false, StructureMode::Load)
-        );
+        assert_eq!((b.rotation, b.mode), (Rotation::None, StructureMode::Load));
     }
 
     #[test]

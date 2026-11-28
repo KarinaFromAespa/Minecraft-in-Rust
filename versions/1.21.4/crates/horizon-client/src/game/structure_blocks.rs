@@ -53,11 +53,12 @@ fn portable_path(path: &str) -> bool {
 }
 
 impl Game<'_> {
-    /// `BlockEntityWithBoundingBoxRenderer`: for a player who may use game
-    /// master blocks (or a spectator), each structure block's box and, with
-    /// Show Invisible Blocks on, a marker for every barrier, light, structure
-    /// void and air block in it. Blocks beyond `getViewDistance` (96) are
-    /// not drawn.
+    /// `StructureBlockRenderer`: for a player who may use game master
+    /// blocks (or a spectator), each structure block's box and, with
+    /// Show Invisible Blocks on, a marker for every barrier, light,
+    /// structure void and air block in it. Blocks beyond
+    /// `getViewDistance` (96) are not drawn. 1.21.5 factored this
+    /// renderer into the generic `BlockEntityWithBoundingBoxRenderer`.
     pub(super) fn bounding_box_gizmos(&self, camera: [f64; 3], g: &mut Gizmos) {
         let game_master = self.can_use_game_master_blocks() || self.spectator();
         let facts = self.res.facts();
@@ -367,7 +368,7 @@ impl Game<'_> {
             return;
         };
         let at = BlockPos::new(pos.0 + b.pos[0], pos.1 + b.pos[1], pos.2 + b.pos[2]);
-        let mut settings = load_settings(b.mirror, b.rotation, b.integrity, b.seed, b.strict);
+        let mut settings = load_settings(b.mirror, b.rotation, b.integrity, b.seed);
         settings.ignore_entities = b.ignore_entities;
         self.place_template_entry(entry, at, settings, b.mirror, b.rotation);
     }
@@ -605,7 +606,6 @@ impl Game<'_> {
             b.rotation = rotation;
             b.metadata = p.data.clone();
             b.ignore_entities = p.ignore_entities;
-            b.strict = p.strict;
             b.show_air = p.show_air;
             b.show_bounding_box = p.show_bounding_box;
             b.integrity = p.integrity;
@@ -656,24 +656,24 @@ impl Game<'_> {
 
 /// The `StructurePlaceSettings` that `StructureBlockEntity.placeStructure`
 /// and `PlaceCommand.placeTemplate` both build: mirror and rotation, the
-/// known shape when strict, the integrity and seed that `place_template`
-/// turns into `BlockRotProcessor` and `createRandom(seed)`, and the
-/// `setBlock` flags `2 | (strict ? 816 : 0)`.
+/// integrity and seed that `place_template` turns into `BlockRotProcessor`
+/// and `createRandom(seed)`, and the `setBlock` flags (2). The shape is
+/// unknown: 1.21.4 has no strict placement (the `strict` flag and the
+/// `/place template ... strict` argument arrived in 1.21.5).
 pub(super) fn load_settings(
     mirror: horizon_world::worldgen::structure::Mirror,
     rotation: horizon_world::worldgen::structure::Rotation,
     integrity: f32,
     seed: i64,
-    strict: bool,
 ) -> TemplateSettings {
     TemplateSettings {
         mirror,
         rotation,
         ignore_entities: false,
-        known_shape: strict,
+        known_shape: false,
         integrity,
         seed: create_seed(seed),
-        flags: flags::UPDATE_CLIENTS | if strict { 816 } else { 0 },
+        flags: flags::UPDATE_CLIENTS,
     }
 }
 
@@ -721,19 +721,16 @@ mod tests {
     }
 
     #[test]
-    fn template_settings_are_flags_2_and_unknown_shape_unless_strict() {
+    fn template_settings_are_flags_2_and_unknown_shape() {
         use horizon_world::worldgen::structure::{Mirror, Rotation};
-        let loose = load_settings(Mirror::LeftRight, Rotation::Clockwise90, 0.5, 7, false);
-        assert_eq!(loose.flags, 2);
-        assert!(!loose.known_shape);
-        assert!(!loose.ignore_entities);
-        assert_eq!((loose.integrity, loose.seed), (0.5, 7));
+        let settings = load_settings(Mirror::LeftRight, Rotation::Clockwise90, 0.5, 7);
+        assert_eq!(settings.flags, 2);
+        assert!(!settings.known_shape);
+        assert!(!settings.ignore_entities);
+        assert_eq!((settings.integrity, settings.seed), (0.5, 7));
         assert_eq!(
-            (loose.mirror, loose.rotation),
+            (settings.mirror, settings.rotation),
             (Mirror::LeftRight, Rotation::Clockwise90)
         );
-        let strict = load_settings(Mirror::None, Rotation::None, 1.0, 7, true);
-        assert_eq!(strict.flags, 818);
-        assert!(strict.known_shape);
     }
 }

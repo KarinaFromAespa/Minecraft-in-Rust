@@ -52,7 +52,8 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let targets = d.argument(respect, "targets", ENTITIES);
     d.executes(targets, "spreadplayers");
 
-    // place template <template> [<pos> [<rotation> [<mirror> [<integrity> [<seed> [strict]]]]]]
+    // place template <template> [<pos> [<rotation> [<mirror> [<integrity> [<seed>]]]]]
+    // 1.21.4 has no trailing `strict` literal (a 1.21.5 addition).
     let place = d.literal(root, "place");
     d.requires(place, GAMEMASTERS);
     let feature = d.literal(place, "feature");
@@ -111,8 +112,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     d.executes(integrity, "place");
     let seed = d.argument(integrity, "seed", integer(i32::MIN));
     d.executes(seed, "place");
-    let strict = d.literal(seed, "strict");
-    d.executes(strict, "place");
 
     forceload(d, root);
     fillbiome(d, root);

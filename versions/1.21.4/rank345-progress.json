@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 86,
-  "note": "Batch 86 closed (2026-11-28): 376 carry-over \u2014 turtle goal signatures identical; the 1.21.5 TravelGoal null guard and travelPos clear are unobservable in 1.21.4 (TRAVEL_POS defaults BlockPos.ZERO, start() always sets it); remote_mob_data Turtle ids 18/19 already 1.21.4-correct. 378 ported \u2014 hanging entities now use 1.21.4's updateCustomEntityTag (custom_data merged at top level, id-checked; no `data` nesting, no entity_data, no painting_variant component): frames stop applying CUSTOM_NAME at construction, paintings read the preset variant from custom_data with no pre-pick, tooltip random line when creative or custom_data undecodable. 382 ported \u2014 Interaction logs a warning on a malformed attack/interaction record, as 1.21.4 does. 383 carry-over \u2014 golem spawn diffs are pure renames (moveTo/snapTo, blockUpdated/updateNeighborsAt). Rank 3 now 25/149 (13 accepted + 12 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
+  "batch": 87,
+  "note": "Batch 87 closed (2026-11-28): 384 carry-over \u2014 respawn anchor already matches (comment fix only: no RespawnConfig record in 1.21.4, 5-arg setRespawnPosition). 385 ported \u2014 goat ram halves its knockback against a blocking player in front (new PlayerView.blocking + ram_tick multiplier, test pins half/full/behind). 393 ported \u2014 jigsaw final_state loads as \"\" on a missing key (1.21.4 getString). 394 ported \u2014 strict removed end to end (entity, edit screen, packet, /place template, load_settings); bounding-box gizmos re-anchored to 1.21.4's StructureBlockRenderer. Rank 3 now 29/149 (13 accepted + 16 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -148,6 +148,26 @@
       "module": "crates/horizon-client/src/game/golems.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 86, jar-verified 2026-11-28): only 2 differing lines in the whole CarvedPumpkinBlock class, both pure renames \u2014 Entity.moveTo(DDDFF) (1.21.4) is Entity.snapTo(DDDFF) (1.21.5) with an identical body, and Level.blockUpdated(pos, block) is Level.updateNeighborsAt(pos, block) (ServerLevel.blockUpdated = updateNeighborsAt when not debug; the 1.21.5 2-arg form adds the redstone-orientation rework). Rust check_golem_spawn/create_triggered/update_pattern_blocks match (spawn at base + (0.5, 0.05, 0.5), yaw 0; trigger_summoned reach 5.0; update_neighbors_at per cell). No code changes."
+    },
+    "384": {
+      "module": "crates/horizon-client/src/game/respawn_anchor.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 87, jar-verified 2026-11-28): 1.21.4 has no RespawnConfig record (ServerPlayer keeps respawnDimension/respawnPosition/respawnAngle/respawnForced separately); useWithoutItem checks dim+pos differ, then setRespawnPosition(dim, pos, 0.0F, false, true), which sends block.minecraft.set_spawn only on change. The Rust's respawn_anchor_used already does exactly this (same dim+pos check, sends the message itself, yaw 0/forced false, plays the sound). charge differs only by the playSound Player->Entity signature (API-only). Comment-only fix: the RespawnConfig doc now notes the four separate fields, and the setRespawnPosition call cites the 1.21.4 5-arg form."
+    },
+    "385": {
+      "module": "crates/horizon-client/src/mobs/goat.rs",
+      "verdict": "closed",
+      "evidence": "PORTED (batch 87, jar-verified 2026-11-28): RamTarget.tick halves the knockback (0.5x) when the target blocks the mobAttack (LivingEntity.isDamageSourceBlocked): getItemBlockingWith requires using an item whose use animation is BLOCK (a shield) for at least 5 ticks, damage not in #bypasses_shield, no piercing arrow, and the flattened direction from the goat to the player against the player's horizontal view dot < 0. The Rust's ram_tick computed power = factor * force with no blocking halving at all. New PlayerView.blocking (computed in player_view() from self.using + blocks_attacks + the 5-tick delay, mirroring player_blocking's first lines; shield_1214 supplies the 1.21.4 shield values) and ram_tick now multiplies the power by 0.5 when the player target is blocking and the goat is in front. Mob targets always take full force (they never raise a blocking item). 1.21.5's applyItemBlocking (shield durability + attacker pushback) is deliberately NOT implemented. Test: a_ram_halves_its_knockback_against_a_blocking_player_in_front pins half power in front, full power behind and unblocked. PrepareRamNearestTarget.tick differs only by the playSound widening (API-only)."
+    },
+    "393": {
+      "module": "crates/horizon-client-render/src/jigsaw_block.rs",
+      "verdict": "closed",
+      "evidence": "PORTED (batch 87, jar-verified 2026-11-28): JigsawBlockEntity.loadAdditional reads final_state with getString in 1.21.4 (a missing key is \"\"), versus getStringOr(..., \"minecraft:air\") in 1.21.5. JigsawBlock::load now defaults final_state to \"\" on a missing key (test updated); the constructor default stays \"minecraft:air\" (a fresh entity's finalState is air). Verified harmless: legacy.rs and processor.rs both fail parse_state_string on \"\" and end up with air/removed, the same placed world as \"minecraft:air\". The other load diffs need no change: name/target/pool fall back to EMPTY_ID in the Rust (1.21.4 would crash parsing a missing key - deliberately not replicated), joint already matches via decode_block_entity_at + default_for_front, priorities are getInt vs getIntOr(0) - same."
+    },
+    "394": {
+      "module": "crates/horizon-client/src/game/structure_blocks.rs",
+      "verdict": "closed",
+      "evidence": "PORTED (batch 87, jar-verified 2026-11-28): strict is a 1.21.5 addition, removed end to end. StructureBlockEntity has no strict field in 1.21.4 (1.21.5 adds DEFAULT_STRICT/isStrict/setStrict): the strict field is gone from StructureBlock (struct/new/save/load) and from the edit screen (STRICT toggle, structure_block.strict label, Initial.strict, button ids renumbered MIRROR 7/SHOW_AIR 8/SHOW_BOX 9/ROTATION 10-13). SetStructureBlock loses the strict field and FLAG_STRICT (bit 8); the flag byte is now ignoreEntities 1/showAir 2/showBoundingBox 4 only. /place template loses its trailing strict literal (tree + cmd_place); load_settings drops the strict parameter - known_shape is now always false and the flags always 2 (StructurePlaceSettings.setKnownShape itself exists in 1.21.4, and the engine-level known_shape handling in horizon-world is untouched - jigsaw placement still sets it). The bounding-box gizmos already matched 1.21.4's StructureBlockRenderer (game-master/spectator gate, 96 view distance, SAVE-always/LOAD-if-showBoundingBox box, SAVE+showAir invisible blocks, air/structure-void/barrier/light markers); only the citations were wrong (BlockEntityWithBoundingBoxRenderer is 1.21.5-only, verified absent from the 1.21.4 client jar) - re-anchored to StructureBlockRenderer.render/renderInvisibleBlocks in structure_blocks.rs and gizmos.rs. Tests: place_template_tree now asserts the strict form fails; set_structure_block packet test drops strict; structure_block save/load and edit-screen cancel tests updated."
     }
   }
 }

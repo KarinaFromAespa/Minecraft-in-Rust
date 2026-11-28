@@ -3093,6 +3093,10 @@ pub struct PlayerView {
     pub sneaking: bool,
     /// `Entity.isSwimming`.
     pub swimming: bool,
+    /// Raising a `BlocksAttacks` item past its block delay: the shield
+    /// half of `LivingEntity.isDamageSourceBlocked` — a goat ram halves
+    /// its knockback against such a player when the goat is in front.
+    pub blocking: bool,
     pub look: [f64; 3],
     pub main_hand: Option<Arc<str>>,
     pub off_hand: Option<Arc<str>>,

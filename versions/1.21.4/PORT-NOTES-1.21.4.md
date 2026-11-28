@@ -6534,3 +6534,36 @@ shape for the review batches.
   (identical body) and Level.blockUpdated is updateNeighborsAt (the 1.21.5
   2-arg form adds the redstone-orientation rework; ServerLevel.blockUpdated
   is updateNeighborsAt when not debug).
+  Batch 87 (2026-11-28, rank 3 G1: report ids 384, 385, 393, 394). Rank 3
+  now 29/149 (13 accepted + 16 closed); total 389/548. 384 CARRY-OVER
+  (respawn_anchor): 1.21.4 has no RespawnConfig record — ServerPlayer keeps
+  respawnDimension/respawnPosition/respawnAngle/respawnForced separately —
+  and useWithoutItem checks dim+pos differ, then calls the 5-arg
+  setRespawnPosition(dim, pos, 0.0F, false, true); the Rust already does
+  exactly this. Comment-only fix (the struct doc and the set call now cite
+  the 1.21.4 form). 385 PORTED (goat): RamTarget.tick halves the knockback
+  when the target blocks the mobAttack — getItemBlockingWith wants a
+  BLOCK-animation item (a shield) used for at least 5 ticks, no
+  #bypasses_shield, no piercing arrow, and the flattened goat-to-player
+  direction against the player's horizontal view dot < 0; 1.21.5's
+  applyItemBlocking (shield damage, attacker pushback) is deliberately not
+  implemented. New PlayerView.blocking (using + blocks_attacks + delay, the
+  shield_1214 values) and ram_tick multiplies the power by 0.5 when the
+  player blocks in front; mob targets always take full force. Test pins half
+  power in front, full power behind and unblocked. 393 PORTED
+  (jigsaw_blocks): loadAdditional reads final_state with getString, so a
+  missing key is "" in 1.21.4 (1.21.5 defaults to "minecraft:air"); the load
+  default and its test now use "". The name/target/pool crash on a missing
+  key is deliberately not replicated (the Rust keeps its EMPTY_ID fallback);
+  joint and priorities already match. 394 PORTED (structure_blocks): strict
+  is a 1.21.5 addition, removed end to end — the StructureBlock.strict field
+  (struct/new/save/load), the edit screen's STRICT toggle and label, the
+  SetStructureBlock packet's strict flag (bit 8), the /place template
+  trailing literal, and load_settings' strict parameter (known_shape now
+  always false, flags always 2; setKnownShape itself exists in 1.21.4 and
+  the engine-level known_shape handling is untouched). The bounding-box
+  gizmos already matched 1.21.4's StructureBlockRenderer (game-master or
+  spectator gate, 96 view distance, SAVE-always / LOAD-if-showBoundingBox
+  box, SAVE+showAir invisible blocks, the four air/void/barrier/light
+  markers); only the citations were wrong — BlockEntityWithBoundingBoxRenderer
+  is 1.21.5-only — re-anchored to StructureBlockRenderer.

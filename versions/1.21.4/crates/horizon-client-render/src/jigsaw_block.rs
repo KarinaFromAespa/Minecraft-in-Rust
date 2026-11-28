@@ -104,7 +104,9 @@ impl JigsawBlock {
             name: id("name"),
             target: id("target"),
             pool: id("pool"),
-            final_state: text(tag.get("final_state")).unwrap_or_else(|| "minecraft:air".into()),
+            // 1.21.4 reads `getString` here (a missing key is `""`); 1.21.5
+            // reads `getStringOr(..., "minecraft:air")`.
+            final_state: text(tag.get("final_state")).unwrap_or_default(),
             joint: text(tag.get("joint"))
                 .and_then(|j| JointType::of_serialized_name(&j))
                 .unwrap_or(default_joint),
@@ -144,7 +146,7 @@ mod tests {
         assert_eq!(block.name, EMPTY_ID);
         assert_eq!(block.target, "minecraft:door");
         assert_eq!(block.pool, EMPTY_ID);
-        assert_eq!(block.final_state, "minecraft:air");
+        assert_eq!(block.final_state, "");
         assert_eq!(block.joint, JointType::Aligned);
         assert_eq!(JointType::default_for_front("up"), JointType::Rollable);
         assert_eq!(

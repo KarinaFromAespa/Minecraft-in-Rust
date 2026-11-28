@@ -398,6 +398,15 @@ impl Game<'_> {
             creative: self.creative || self.spectator(),
             sneaking: self.keys.held(Action::Sneak),
             swimming: p.swimming,
+            // `LivingEntity.getItemBlockingWith`: using a `BlocksAttacks`
+            // item (a shield in 1.21.4) for at least its block delay
+            // (5 ticks; `BlocksAttacks::shield_1214`).
+            blocking: self.using.is_some_and(|(slot, ticks)| {
+                self.stack_in(slot).is_some_and(|stack| {
+                    self.blocks_attacks(stack)
+                        .is_some_and(|c| (ticks as i32) >= (c.delay_seconds * 20.0).round() as i32)
+                })
+            }),
             look: view_vector(self.yaw, self.pitch),
             main_hand: self.held().map(|s| s.item.clone()),
             off_hand: self.offhand.as_ref().map(|s| s.item.clone()),

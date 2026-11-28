@@ -157,7 +157,6 @@ pub struct StructureBlock {
     pub rotation: Rotation,
     pub mode: StructureMode,
     pub ignore_entities: bool,
-    pub strict: bool,
     pub powered: bool,
     pub show_air: bool,
     pub show_bounding_box: bool,
@@ -178,7 +177,6 @@ impl StructureBlock {
             rotation: Rotation::None,
             mode,
             ignore_entities: true,
-            strict: false,
             powered: false,
             show_air: false,
             show_bounding_box: true,
@@ -218,7 +216,6 @@ impl StructureBlock {
             ("mirror", string(self.mirror.saved_name())),
             ("mode", string(self.mode.legacy_name())),
             ("ignoreEntities", byte(self.ignore_entities)),
-            ("strict", byte(self.strict)),
             ("powered", byte(self.powered)),
             ("showair", byte(self.show_air)),
             ("showboundingbox", byte(self.show_bounding_box)),
@@ -264,7 +261,6 @@ impl StructureBlock {
             .and_then(|m| mirror_from_legacy_name(&m))
             .unwrap_or(Mirror::None);
         block.ignore_entities = flag("ignoreEntities", false);
-        block.strict = flag("strict", false);
         block.powered = flag("powered", false);
         block.show_air = flag("showair", false);
         block.show_bounding_box = flag("showboundingbox", false);
@@ -399,7 +395,6 @@ mod tests {
         block.rotation = Rotation::Clockwise90;
         block.mirror = Mirror::FrontBack;
         block.ignore_entities = false;
-        block.strict = true;
         block.integrity = 0.25;
         block.seed = -9;
         let tag = Tag::compound(block.save());
@@ -423,7 +418,7 @@ mod tests {
         assert_eq!(block.size, [0, 48, 0]);
         assert_eq!(block.name, None);
         assert_eq!(block.mode, StructureMode::Data);
-        assert!(!block.ignore_entities && !block.show_bounding_box && !block.strict);
+        assert!(!block.ignore_entities && !block.show_bounding_box);
         assert_eq!(block.integrity, 1.0);
         // A missing pos is (0, 0, 0) in 1.21.4 (plain `getInt`), not the
         // constructor's (0, 1, 0) (1.21.5 loads `getIntOr(DEFAULT_POS)`).

@@ -1238,7 +1238,6 @@ fn set_structure_block_round_trips_and_clamps_like_vanilla() {
         rotation: 3,
         data: "meta".into(),
         ignore_entities: true,
-        strict: false,
         show_air: true,
         show_bounding_box: true,
         integrity: 0.5,
@@ -1249,7 +1248,8 @@ fn set_structure_block_round_trips_and_clamps_like_vanilla() {
         Serverbound::encode,
         Serverbound::decode,
     );
-    // The flag byte: ignoreEntities 1, showAir 2, showBoundingBox 4, strict 8.
+    // The flag byte: ignoreEntities 1, showAir 2, showBoundingBox 4.
+    // 1.21.4 has no strict flag (a 1.21.5 addition, bit 8).
     let mut w = Writer::new();
     SetStructureBlock::write(&packet, &mut w);
     assert_eq!(*w.data.last().unwrap(), 1 | 2 | 4);

@@ -33,6 +33,8 @@ pub const MAJOR_LINES: u32 = 0xFF3F_3FFF;
 pub const OUTER_COLUMNS: u32 = 0x7FFF_0000;
 /// `ARGB.colorFromFloat(1.0F, 0.25F, 1.0F, 0.0F)`: dragon parts.
 pub const DRAGON_PART: u32 = 0xFF3F_FF00;
+/// The four markers of `StructureBlockRenderer.renderInvisibleBlocks`:
+/// air, structure void, barrier and light. 1.21.5 groups them as
 /// `BlockEntityWithBoundingBoxRenderer.InvisibleBlockType`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InvisibleBlock {
@@ -119,9 +121,10 @@ impl Gizmos {
             width,
         }));
     }
-    /// `BlockEntityWithBoundingBoxRenderer.submit`: the box at `block` +
-    /// `local` of `size` blocks (nothing when a side is empty), then the
-    /// markers of the invisible blocks in it, indexed `z * sx * sy + y * sx + x`.
+    /// `StructureBlockRenderer.render` + `renderInvisibleBlocks`: the box
+    /// at `block` + `local` of `size` blocks (nothing when a side is
+    /// empty), then the markers of the invisible blocks in it, indexed
+    /// `z * sx * sy + y * sx + x`.
     pub fn bounding_box(
         &mut self,
         block: [i32; 3],

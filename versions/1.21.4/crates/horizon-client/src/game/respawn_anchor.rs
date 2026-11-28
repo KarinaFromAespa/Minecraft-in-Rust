@@ -22,8 +22,11 @@ use horizon_world::{
     collision_context::CollisionContext, level::data::state_flags, registry::BlockStateId,
 };
 
-/// `ServerPlayer.RespawnConfig`: a respawn point other than the world spawn
-/// that the game resolves through its block (a respawn anchor).
+/// A respawn point other than the world spawn that the game resolves
+/// through its block (a respawn anchor). 1.21.4 has no `RespawnConfig`
+/// record: `ServerPlayer` keeps the four fields separately
+/// (`respawnDimension`, `respawnPosition`, `respawnAngle`,
+/// `respawnForced`); this struct groups them for the game.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct RespawnConfig {
     pub dim: Dim,
@@ -202,8 +205,8 @@ impl Game<'_> {
             if cancel {
                 return Ok(());
             }
-            // setRespawnPosition(config, true): the message, the point; the
-            // anchor replaces a bed.
+            // setRespawnPosition(dim, pos, 0.0F, false, true): the
+            // message, the point; the anchor replaces a bed.
             self.system_message(Text::translate("block.minecraft.set_spawn", &[]));
             self.respawn_config = Some(config);
             if let Some([x, y, z]) = self.level.world_spawn {

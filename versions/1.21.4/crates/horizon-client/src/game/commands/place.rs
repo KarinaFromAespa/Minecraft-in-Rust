@@ -258,7 +258,6 @@ impl Game<'_> {
             Some(Arg::Int(s)) => *s,
             _ => 0,
         };
-        let strict = ctx.has("strict");
         let entry = self
             .template_entry(&id)
             .ok_or_else(|| err("commands.place.template.invalid", &[&id]))?;
@@ -266,7 +265,7 @@ impl Game<'_> {
         let end = [pos[0] + size[0], pos[2] + size[2]];
         self.place_check_loaded([pos[0] >> 4, pos[2] >> 4], [end[0] >> 4, end[1] >> 4])?;
         // `placeInWorld(level, pos, pos, settings, createRandom(seed), flags)`.
-        let settings = load_settings(mirror, rotation, integrity, i64::from(seed), strict);
+        let settings = load_settings(mirror, rotation, integrity, i64::from(seed));
         let at = BlockPos::new(pos[0], pos[1], pos[2]);
         if !self.place_template_entry(&entry, at, settings, mirror, rotation) {
             return Err(err("commands.place.template.failed", &[]));

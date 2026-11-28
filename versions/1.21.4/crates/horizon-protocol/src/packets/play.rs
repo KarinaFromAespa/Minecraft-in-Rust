@@ -1931,7 +1931,6 @@ pub struct SetStructureBlock {
     pub rotation: i32,
     pub data: String,
     pub ignore_entities: bool,
-    pub strict: bool,
     pub show_air: bool,
     pub show_bounding_box: bool,
     pub integrity: f32,
@@ -1941,7 +1940,6 @@ impl SetStructureBlock {
     const FLAG_IGNORE_ENTITIES: i8 = 1;
     const FLAG_SHOW_AIR: i8 = 2;
     const FLAG_SHOW_BOUNDING_BOX: i8 = 4;
-    const FLAG_STRICT: i8 = 8;
 }
 impl Codec<SetStructureBlock> for SetStructureBlock {
     /// `ServerboundSetStructureBlockPacket(FriendlyByteBuf)`: the offsets,
@@ -1976,7 +1974,6 @@ impl Codec<SetStructureBlock> for SetStructureBlock {
             rotation,
             data,
             ignore_entities: flags & Self::FLAG_IGNORE_ENTITIES != 0,
-            strict: flags & Self::FLAG_STRICT != 0,
             show_air: flags & Self::FLAG_SHOW_AIR != 0,
             show_bounding_box: flags & Self::FLAG_SHOW_BOUNDING_BOX != 0,
             integrity,
@@ -2008,9 +2005,6 @@ impl Codec<SetStructureBlock> for SetStructureBlock {
         }
         if v.show_bounding_box {
             flags |= Self::FLAG_SHOW_BOUNDING_BOX;
-        }
-        if v.strict {
-            flags |= Self::FLAG_STRICT;
         }
         w.i8(flags);
     }

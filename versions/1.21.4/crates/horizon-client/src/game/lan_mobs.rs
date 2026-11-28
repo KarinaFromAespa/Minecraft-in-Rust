@@ -503,6 +503,7 @@ mod tests {
             creative,
             sneaking: false,
             swimming: false,
+            blocking: false,
             look: [0.0; 3],
             main_hand: None,
             off_hand: None,

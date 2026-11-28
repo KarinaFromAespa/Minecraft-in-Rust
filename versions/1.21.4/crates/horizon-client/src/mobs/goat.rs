@@ -454,11 +454,33 @@ fn ram_tick(m: &mut Mob, cx: &mut Cx) {
         let boost = 0.25 * (level("minecraft:speed") - level("minecraft:slowness")) as f32;
         let factor = (m.ai.speed * 1.65).clamp(0.2, 3.0) + boost;
         let force = if m.is_baby() { 1.0 } else { 2.5 };
+        // `RamTarget` halves the knockback when the target blocks the
+        // `mobAttack` (`LivingEntity.isDamageSourceBlocked`): the player
+        // raising a shield, with the goat in front of them. A mob target
+        // never raises a blocking item, so it always takes the full force.
+        // 1.21.5 replaces this with `applyItemBlocking` (shield damage and
+        // an attacker pushback the 1.21.4 form does not have).
+        let blocked = matches!(target, Who::Player)
+            && cx.w.player.as_ref().is_some_and(|p| {
+                if !p.blocking {
+                    return false;
+                }
+                // The direction from the goat to the player, flattened,
+                // against the player's horizontal view.
+                let to = [p.position.x - m.position.x, p.position.z - m.position.z];
+                let len = (to[0] * to[0] + to[1] * to[1]).sqrt();
+                if len < 1.0e-4 {
+                    return false;
+                }
+                let yaw = f64::from(-p.yaw).to_radians();
+                let view = [yaw.sin(), yaw.cos()];
+                (to[0] * view[0] + to[1] * view[1]) / len < 0.0
+            });
         let d = m.extra.goat.ram_direction;
         // The knockback's source is `mobAttack`, not the hurt's `noAggroMobAttack`.
         cx.events.push(MobEvent::Knockback {
             target,
-            power: f64::from(factor * force),
+            power: f64::from(factor * force) * if blocked { 0.5 } else { 1.0 },
             x: d.x,
             z: d.z,
             source: Damage::mob(m.id, from),
@@ -600,6 +622,49 @@ mod sound_tests {
         assert_eq!(*at, [0.123456789, 64.0, -3.25]);
         assert_eq!((*volume, *pitch), (1.0, 1.0));
         assert_eq!(goat.random.next_long(), expected.next_long());
+    }
+
+    /// `RamTarget.tick`: `isDamageSourceBlocked` halves the knockback
+    /// against a player raising a shield in front of the goat.
+    #[test]
+    fn a_ram_halves_its_knockback_against_a_blocking_player_in_front() {
+        let run = |blocking: bool, goat_z: f64| -> Option<f64> {
+            let mut power = None;
+            let ran = crate::mobs::world::with_test_world(&[], |w, _types| {
+                let mut w = w.clone();
+                let mut player = crate::mobs::world::test_player(Vec3::new(0.5, 64.0, 0.5));
+                player.blocking = blocking;
+                w.player = Some(player);
+                let mut kind = crate::mobs::sensor_scan_tests::kind();
+                let k = std::sync::Arc::make_mut(&mut kind);
+                k.id = "minecraft:goat".into();
+                k.species = super::super::Species::Goat;
+                let mut goat = Mob::new(37, kind, Vec3::new(0.5, 64.0, goat_z), 0.0);
+                goat.extra.goat.phase = Phase::Ram;
+                goat.extra.goat.ram_direction = Vec3::new(1.0, 0.0, 0.0);
+                let (mut lr, mut events) = (horizon_core::random::LegacyRandom::new(0), Vec::new());
+                let mut cx = Cx {
+                    w: &w,
+                    lr: &mut lr,
+                    events: &mut events,
+                };
+                ram_tick(&mut goat, &mut cx);
+                power = events.iter().find_map(|e| match e {
+                    MobEvent::Knockback { target, power, .. } if *target == Who::Player => {
+                        Some(*power)
+                    }
+                    _ => None,
+                });
+            });
+            assert!(ran);
+            power
+        };
+        let full = run(false, 1.0).expect("a ram against a player knocks them back");
+        let halved = run(true, 1.0).expect("a blocked ram still knocks the player back");
+        assert_eq!(halved, full / 2.0);
+        // The goat behind the player is not in front: no halving.
+        let behind = run(true, 0.0).expect("a ram from behind knocks the player back");
+        assert_eq!(behind, full);
     }
 
     /// `WorldBorder.isWithinBounds(AABB)`: both corners inside, the max one

@@ -752,7 +752,7 @@ fn place_template_tree() {
     for line in [
         "place template minecraft:igloo/top",
         "place template minecraft:igloo/top ~ ~ ~",
-        "place template minecraft:igloo/top 1 2 3 clockwise_90 left_right 0.5 12 strict",
+        "place template minecraft:igloo/top 1 2 3 clockwise_90 left_right 0.5 12",
     ] {
         assert_eq!(
             run(line).unwrap_or_else(|e| panic!("{line}: {e:?}")).0,
@@ -761,6 +761,12 @@ fn place_template_tree() {
     }
     assert!(run("place template minecraft:x ~ ~ ~ sideways").is_err());
     assert!(run("place template minecraft:x ~ ~ ~ none none 2").is_err());
+    // 1.21.4 has no trailing `strict` (a 1.21.5 addition).
+    assert!(
+        run("place template minecraft:igloo/top 1 2 3 clockwise_90 left_right 0.5 12 strict")
+            .is_err(),
+        "`strict` is not a 1.21.4 `/place template` argument"
+    );
 }
 #[test]
 fn mod_commands_join_the_tree_for_every_player() {
