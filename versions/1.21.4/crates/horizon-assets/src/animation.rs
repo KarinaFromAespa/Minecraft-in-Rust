@@ -1,4 +1,4 @@
-//! Java Edition 26.3 animation metadata and sprite tick selection.
+//! Java Edition 1.21.4 animation metadata and sprite tick selection.
 use crate::json::*;
 use serde_json::value::RawValue;
 
@@ -197,8 +197,9 @@ pub struct AnimationSample {
     pub next_frame: u32,
     pub dirty: bool,
     pub needs_draw: bool,
-    /// Native drawToAtlas encodes floor((subFrame / time) * 1000) in its
-    /// first-vertex argument. This is not a claim about GPU interpolation pixels.
+    /// 1.21.4's `InterpolationData.uploadInterpolatedFrame` blends by the float
+    /// fraction `subFrame / time`; the GPU job encodes that fraction as
+    /// floor((subFrame / time) * 1000) in its first-vertex argument. This is not a claim about GPU interpolation pixels.
     pub interpolation_millis: u32,
 }
 impl AnimationClip {

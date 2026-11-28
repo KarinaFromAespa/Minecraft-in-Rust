@@ -15,7 +15,7 @@ impl super::HudRenderer {
             return;
         };
         for (rect, animation, previous) in &mut self.sprite_animations {
-            // `SpriteContents.AnimationState`: the frame from the mcmeta's
+            // `SpriteContents$Ticker` + `InterpolationData`: the frame from the mcmeta's
             // list, blended into the next one by the sub-frame's thousandths
             // when the sprite interpolates; or what a Polytone `mode` picks.
             let blend = animation.blend_with(tick, inputs);

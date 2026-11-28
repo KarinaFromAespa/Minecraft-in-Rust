@@ -34,7 +34,7 @@ impl SpriteAnimation {
     pub fn frame(&self, tick: u64) -> usize {
         self.clip.sample(tick).frame as usize
     }
-    /// `SpriteContents.AnimationState.drawToAtlas`: an animation with
+    /// `SpriteContents$InterpolationData.uploadInterpolatedFrame`: an animation with
     /// `interpolate` mixes the frame with the next one by
     /// `(int)(subFrame / time * 1000)` thousandths; others show the frame.
     pub fn blend(&self, tick: u64) -> FrameBlend {

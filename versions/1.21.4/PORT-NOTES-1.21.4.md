@@ -7292,3 +7292,49 @@ MobEffectInstance.getBlendFactor); darkness_target cited hasEffect
 instead of computeTarget. Rank 3 after batch 110: 137/149 done
 (closed 114 + ported 8 + carry-over 2 + accepted 13, counted once);
 total 497/548.
+
+Batch 111 (2026-11-29, rank 3 G5: report ids 438, 439, 440, 444):
+438 (containers.rs): SkullBlock/WallSkullBlock -- the 1.21.5 diff is a
+shape-helper refactor with identical boxes: SkullBlock's SHAPE
+(4,0,4,12,8,12) and PIGLIN_SHAPE (3,0,3,13,8,13) become private
+SHAPE/SHAPE_PIGLIN built via Block.column (traced identical);
+WallSkullBlock's explicit AABBS map becomes
+Shapes.rotateHorizontal(Block.boxZ(8,8,16)) -- boxZ(8,8,16) traces to
+exactly the 1.21.4 NORTH box (4,4,8,12,12,16), and rotateHorizontal
+(NORTH as-is, EAST R90, SOUTH R180, WEST R270) yields the same four
+boxes. The Rust hardcodes no skull boxes: shapes come data-driven from
+prepared 1.21.4 resources. 439 (gfx/animate.rs): AnimatedTexture --
+the only diff is the GpuTexture parameter threaded through
+uploadFrame/uploadFirstFrame; frame math (frame %/ frameRowSize),
+Ticker advance and the subFrame/time interpolation fraction are
+identical, and the Rust's AnimationClip.sample matches them. Five doc
+citations fixed: they named the nonexistent-in-1.21.4
+SpriteContents.AnimationState and vanilla 26.3 (gfx/animate.rs,
+sprites.rs, hud/animate.rs, animation.rs) -- now citing 1.21.4's
+SpriteContents$Ticker.tickAndUpload and
+InterpolationData.uploadInterpolatedFrame. 440 (trims.rs): LayerType
+gains 8 saddle layers + trimAssetPrefix() in 1.21.5; the Rust passes
+only humanoid/humanoid_leggings and never references trimAssetPrefix.
+TrimPredicate is absent from both 1.21.4 jars. Four doc citations
+fixed: TrimOverride cited the nonexistent
+EquipmentClientInfo.TrimOverride (no vanilla code reads a
+trim_overrides key; vanilla 1.21.4 resolves palettes via
+TrimMaterial.overrideArmorAssets); matches cited the 1.21.5-only
+TrimPredicate.matches (now 1.21.4's ItemTrimPredicate.matches);
+resolve cited the nonexistent TrimTextureKey.getOrPrepareTexture (now
+TrimSpriteKey.textureId); generate cited the nonexistent
+PalettedTextureManager.prepareSlot (now
+PalettedPermutations.createPaletteMapping). 444 (mesher/lighting.rs):
+SizeInfo -- 1.21.4's shape = get3DDataValue() + (flip ? 6 : 0) is the
+ordinal, exactly 1.21.5's index (COUNT = 12 added); the Rust's
+constants (DOWN 0 ... FLIP_EAST 11) already match. ADJACENT FINDING
+(recorded, not fixed -- rank-2 item 199 territory, already closed):
+the Rust's direct-trim-holder stream codec (item/trim.rs:
+TrimMaterial {palette_id, description}, TrimPattern {asset_id,
+description, decal}) does not match 1.21.4's wire form (TrimMaterial:
+assetName string, ingredient item-holder, overrideArmorAssets map,
+description component; TrimPattern: assetId, templateItem holder,
+description component, decal bool). Only inline/direct holders are
+affected; registry references are fine. Re-opening item 199 is a
+parent call. Rank 3 after batch 111: 141/149 done (closed 118 +
+ported 8 + carry-over 2 + accepted 13, counted once); total 501/548.

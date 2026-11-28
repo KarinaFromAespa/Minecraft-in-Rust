@@ -127,9 +127,12 @@ fn asset_path(root: &Path, folder: &str, id: &str, suffix: &str) -> std::path::P
         .join(format!("{path}{suffix}"))
 }
 
-/// `EquipmentClientInfo.TrimOverride`: when the trim matches (`when`'s
+/// An equipment asset's `trim_overrides` entry: when the trim matches (`when`'s
 /// material and pattern, each optional), use `texture` instead of the
 /// pattern's asset id and `palette` (none when absent) as the palette.
+/// (No vanilla 1.21.4 code reads that key — vanilla resolves the palette
+/// through `TrimMaterial.overrideArmorAssets`, read by
+/// `EquipmentLayerRenderer$TrimSpriteKey.getColorPaletteSuffix`.)
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TrimOverride {
     pub material: Option<String>,
@@ -156,7 +159,8 @@ impl TrimOverride {
             })
             .collect()
     }
-    /// `TrimPredicate.matches`.
+    /// 1.21.4's `ItemTrimPredicate.matches`: the material and pattern each
+    /// match when absent, else by holder set.
     fn matches(&self, material: &str, pattern: &str) -> bool {
         self.material.as_deref().is_none_or(|m| m == material)
             && self.pattern.as_deref().is_none_or(|p| p == pattern)
@@ -229,7 +233,7 @@ pub struct TrimTexture {
     pub palette: Option<String>,
 }
 impl TrimTexture {
-    /// `TrimTextureKey.getOrPrepareTexture`: the trim (`material`,
+    /// `EquipmentLayerRenderer$TrimSpriteKey.textureId`: the trim (`material`,
     /// `pattern` registry ids) on the `layer` (`humanoid`,
     /// `humanoid_leggings`...) of an equipment asset with `overrides`.
     pub fn resolve(
@@ -262,10 +266,10 @@ impl TrimTexture {
             self.palette.as_deref().unwrap_or("-")
         )
     }
-    /// `PalettedTextureManager.prepareSlot`: the texture with its base
-    /// palette's colours swapped for the target palette's (`PaletteMapping`;
-    /// unchanged when a palette is missing or the sizes differ). None when
-    /// the texture itself is missing.
+    /// `PalettedPermutations.createPaletteMapping`: the texture with its base
+    /// palette's colours swapped for the target palette's (unchanged when a
+    /// palette is missing or the sizes differ). None when the texture itself
+    /// is missing.
     pub fn generate(&self, root: &Path) -> Option<Image> {
         let path = asset_path(root, "textures", &self.texture, ".png");
         let (w, h, pixels) = crate::hud::decode(&path).ok()?;

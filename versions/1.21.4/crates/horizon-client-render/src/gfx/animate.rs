@@ -1,4 +1,4 @@
-//! Animated block sprites, drawn on the GPU as vanilla 26.3 draws them:
+//! Animated block sprites, drawn on the GPU as vanilla 1.21.4 draws them:
 //! `SpriteContents.AnimatedTexture` keeps every frame in video memory, and
 //! each tick `animate_sprite_blit` or `animate_sprite_interpolate` draws the
 //! frame shown (mixed with the next one for `interpolate`) into the atlas.
@@ -391,7 +391,7 @@ impl SpriteAnimator {
 
     /// Show every sprite's frame at `tick` (or what a Polytone `mode` picks from `inputs`),
     /// rewriting only the sprites whose frame or mix changed
-    /// (`SpriteContents.AnimationState.tick`), skipping sprites not present in `active` when
+    /// (`SpriteContents$Ticker.tickAndUpload`), skipping sprites not present in `active` when
     /// provided.
     pub fn animate_with(
         &mut self,
