@@ -52,13 +52,14 @@ means 1.21.5-only — all 51 such classes verified ABSENT from both 1.21.4 jars
 
 ## Scope calls remaining (owner)
 
-- **Realms (362 + 497) — DEFER.** Realms is real, wired Horizon code: `realms.rs` is
+- **Realms (362 + 497) — DEFER, owner decision 2026-11-28 11:50 NPT.** Realms is real, wired Horizon code: `realms.rs` is
   12,946 lines, 8/8 named methods live in it, and the Realms classes exist in the
   1.21.4 jars (229 entries). This is genuine porting, not a stub. But it only runs
-  with a signed-in Microsoft account; offline play never reaches it. Recommendation:
-  DEFER the port, ACCEPT-with-cause only if the owner rules Realms out of scope for
-  1.21.4 — the same call as for the other versions, where Realms was ported.
-  Item 497 (`realms/upload.rs`, 1 method, 0 named) rides with 362.
+  with a signed-in Microsoft account; offline play never reaches it. Owner's word:
+  leave the port for now — let it surface when users test Realms; port everything
+  else as the triage assigns, and if issues arise from Realms testing, they will be
+  known then. Item 497 (`realms/upload.rs`, 1 method, 0 named) rides with 362.
+  Not accepted-out of scope, not ported now: deferred until user testing.
 - **Gametest (359) is NOT a scope call anymore.** The framework exists in 1.21.4, so
   the /test command port is ordinary batch work (G6, batch 113). Only the test-BLOCK
   halves (464/465) are accepted as absent, with the Rust-side dead support recorded
