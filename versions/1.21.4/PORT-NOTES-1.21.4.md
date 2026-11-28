@@ -6685,3 +6685,18 @@ shape for the review batches.
   calls); the Rust's DefendVillage::can_use already matches
   (spectator/creative early-false, 10x8x10 box, reputation <= -100,
   line of sight).
+  Batch 92 (2026-11-28, rank 3 G1: report id 420). Rank 3 now 45/149
+  (13 accepted + 32 closed); total 405/548. 420 PORT (pumpkin): the
+  useItemOn diff itself is only the playSound Player->Entity widening,
+  but the Rust carried the 1.21.11 form and rolled the carve/pumpkin
+  loot table, which does not exist in 1.21.4 (arrived in 1.21.9) -- so
+  carving dropped no seeds, the same live defect 1.21.7 had before its
+  fix. The jar drops 4 pumpkin seeds directly in code (spawned at
+  x+0.5+dirX*0.65, y+0.1, z+0.5+dirZ*0.65, velocity 0.05*dir +
+  random.nextDouble()*0.02, 0.05 y). Fix mirrors the 1.21.7 fix
+  (87f06930): drops = vec![ItemStack::new("minecraft:pumpkin_seeds",
+  4)], keeping native_use_drops so mods can still add drops. Everything
+  else already matched: shears check, Y-face player-direction-opposite
+  facing, PUMPKIN_CARVE 1.0/1.0 at the block centre, set_golem_head,
+  damage_held(1), SHEAR game event, shears-used stat,
+  item_used_on_block trigger. No new test, same as the 1.21.7 fix.

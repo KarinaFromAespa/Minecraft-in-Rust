@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 91,
-  "note": "Batch 91 (2026-11-28): 414 carry-over \u2014 AlterGround already matches 1.21.4's inline lowest-trunk logic; PlaceOnGround stays as dead-in-1.21.4 code (no such class in the 1.21.4 jar). 416 carry-over \u2014 wither checkSpawn differs only by the moveTo/snapTo rename; the Rust's spawn position/yaw/invulnerable/trigger match. 417 carry-over \u2014 fishing-rod use differs only by two playSound Player->Entity widenings; the Rust plays the same retrieve/throw sounds with the same pitch formula. 418 carry-over \u2014 golem-defense canUse differs only by instanceof pattern-matching form; the Rust's spectator/creative/reputation <= -100/box/line-of-sight match. Rank 3 now 44/149 (13 accepted + 31 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
+  "batch": 92,
+  "note": "Batch 92 (2026-11-28): 420 PORT \u2014 carving a pumpkin dropped no seeds: the Rust rolled the carve/pumpkin table, which does not exist in 1.21.4 (arrived 1.21.9); the jar drops 4 seeds directly in code. Fix mirrors the 1.21.7 fix (87f06930): drops = vec![ItemStack::new(\"minecraft:pumpkin_seeds\", 4)], keeping native_use_drops. The useItemOn diff itself is only the playSound Player->Entity widening. Rank 3 now 45/149 (13 accepted + 32 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -248,6 +248,11 @@
       "module": "crates/horizon-client/src/mobs/golem.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 91, jar-verified 2026-11-28): DefendVillageTargetGoal.canUse differs only by Java instanceof pattern-matching form -- 1.21.4 calls LivingEntity.isSpectator() then casts to Player for isCreative(); 1.21.5 binds the Player once and calls Player.isSpectator() + Player.isCreative() -- same methods, semantically identical. The Rust's DefendVillage::can_use already matches: spectator/creative early-false, box 10x8x10 around the golem, any villager in the box whose gossips give the player a reputation <= -100, plus line of sight. No code change."
+    },
+    "420": {
+      "module": "crates/horizon-client/src/game/pumpkin.rs",
+      "verdict": "closed",
+      "evidence": "PORT (batch 92, jar-verified 2026-11-28): PumpkinBlock.useItemOn is IDENTICAL between 1.21.4 and 1.21.5 except the playSound Player->Entity widening (same sound, position, volume, pitch) -- but the Rust carried the 1.21.11 form: it rolled the minecraft:carve/pumpkin loot table, which does not exist in 1.21.4 (arrived in 1.21.9; loot-table audit), so carving dropped no seeds -- the same live defect 1.21.7 had before its fix. The jar drops 4 pumpkin seeds directly in code (new ItemStack(PUMPKIN_SEEDS, 4) spawned at x+0.5+dirX*0.65, y+0.1, z+0.5+dirZ*0.65 with velocity 0.05*dir + random.nextDouble()*0.02, 0.05 y). Fix mirrors the 1.21.7 fix (87f06930): drops = vec![ItemStack::new(\"minecraft:pumpkin_seeds\", 4)], keeping native_use_drops so mods can still add drops. Everything else already matched: shears check, Y-face player-direction-opposite facing (yaw/90+0.5 floor mod 4), PUMPKIN_CARVE sound 1.0/1.0 at the block centre, set_golem_head for the carved pumpkin, damage_held(1), SHEAR game event, shears-used stat, item_used_on_block trigger. No new test, same as the 1.21.7 fix."
     }
   }
 }
