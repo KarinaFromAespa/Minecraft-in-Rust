@@ -6385,3 +6385,28 @@ shape for the review batches.
   (horizon_core::ticks) is the same int-valued enum (ExtremelyHigh=-3 ..
   ExtremelyLow=3, `by_value(i32)`) used in-memory by the tick scheduling. No
   behaviour change. Rank 2: 348/348.
+
+  Rank-3 triage (2026-11-28, owner-authorized; triage only, no batch porting;
+  full table in `RANK3-TRIAGE.md`). All 190 remaining items sorted: 173 CLOSE /
+  15 ACCEPT-WITH-CAUSE / 2 DEFER (Realms). Batches 84-124 assigned (41 batches):
+  G1 wired gameplay 84-92, G2 commands/protocol/launcher 93-96, G3 worldgen
+  97-100, G4 long-tail sweep 101-107 (8/batch), G5 render 108-112, G6 big system
+  113-114 (359 gametest, 360 packrat, one each), G7 rank-4 verification 115-124.
+  Three corrections to the prepared brief, each jar-verified: (1) rank 4 is NOT
+  confirm-absent — all 155 classes are PRESENT in the 1.21.4 jars (155/155);
+  'New in <package>' means 1.21.5 moved/rewrote them (e.g. BakedModel is a
+  6-method interface in 1.21.4 client/resources/model; 1.21.5 has no BakedModel
+  class at all), so rank 4 flips ACCEPT -> CLOSE as a pre-refactor verification
+  sweep. (2) The gametest framework EXISTS in 1.21.4 (53 classes/jar); only the
+  test-block additions are absent, so 359 is CLOSE (the Rust's test_runs.rs
+  implements the 1.21.5 /test form — it references clear/reset/run/verify, which
+  javap shows absent from 1.21.4 TestCommand, and misses trackAndStartRunner,
+  which 1.21.4 has) while 464/465 stay ACCEPT. (3) Registry entries 545/546 exist
+  in 1.21.4: minecraft:potion (EntityType.POTION) was split into
+  splash/lingering_potion in 1.21.5, and entity.wolf.howl (SoundEvents.WOLF_HOWL)
+  is absent from 1.21.5 — both CLOSE, verify the Rust's registries carry the
+  1.21.4 forms. Reliable signals: report `removed: True` means 1.21.5-only (all
+  51 verified absent from both 1.21.4 jars); 101/110 named methods found live in
+  their modules (9 misses flagged per item). DEFER stays Realms only (362+497:
+  realms.rs 12,946 lines, 8/8 named live, Realms present in 1.21.4 jars, but
+  only reachable with a signed-in Microsoft account — owner scope call).
