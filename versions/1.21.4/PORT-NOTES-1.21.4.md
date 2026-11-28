@@ -6567,3 +6567,32 @@ shape for the review batches.
   box, SAVE+showAir invisible blocks, the four air/void/barrier/light
   markers); only the citations were wrong — BlockEntityWithBoundingBoxRenderer
   is 1.21.5-only — re-anchored to StructureBlockRenderer.
+  Batch 88 (2026-11-28, rank 3 G1: report ids 395, 397, 398, 399). Rank 3
+  now 33/149 (13 accepted + 20 closed); total 393/548. 395 PORTED (camel):
+  1.21.4 CamelModel has toggleInvisibleParts — saddle and bridle show only
+  when saddled, reins only when saddled and ridden — while 1.21.5's model
+  has createBodyMesh() and no toggle; camel::anim now sets those three
+  visibilities (ridden = equine::is_vehicle) right after the head rotation,
+  and a resource-free test pins hidden/visible in all three states. 397
+  CARRY-OVER (trident): signatures identical; the only diffs are a no-op
+  dealtDamage = false init and getBooleanOr(..., false) versus getBoolean,
+  and the Rust's flag() already returns false on a missing key. 398 PORTED
+  (books): the tooltip already matched WrittenBookItem.appendHoverText
+  exactly (only the stations.rs comment cited the 1.21.5 location);
+  saveChanges and the ClickEvent form carry over (SuggestCommand is
+  1.21.5-only); resolveBookComponents is now done at view time — opening a
+  book or reading it from a lectern resolves its selector/score pages via
+  resolve_component, as ServerPlayer.openItemGui and
+  LecternBlockEntity.resolveBook do — with the caveat that the stack keeps
+  its unresolved pages and re-resolves on the next open (vanilla writes the
+  resolved content back and marks it resolved). The new book test is
+  #[ignore]d (needs prepared resources, like the lectern tests). 399 PORTED
+  (growth): GrowingPlantHeadBlock.updateShape loses the 1.21.5-only
+  look-ahead — a head under a head or body no longer converts when the
+  neighbour against the growth changes (the Rust had the 1.21.5 branch from
+  the parent form); to_body, the growth-direction conversion and the no-op
+  super call already matched. ShearsItem.mineBlock is CARRY-OVER: the wear
+  rule (1 durability on any non-fire block) already matches, and the boolean
+  return is discarded by ServerPlayerGameMode.destroyBlock. The new kelp
+  level test pins both updateShape branches but passes vacuously without
+  prepared resources (locally and on CI, which has no prepare step).

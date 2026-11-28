@@ -457,6 +457,13 @@ pub fn anim(
     y = y.to_radians();
     p.yrot("head", y);
     p.xrot("head", x.to_radians());
+    // `CamelModel.toggleInvisibleParts`: the saddle and bridle show only on
+    // a saddled camel, the reins only on a saddled camel with a rider.
+    // 1.21.4 only: 1.21.5's model has no toggle (`createBodyMesh` instead).
+    let saddled = m.extra.saddled;
+    p.visible("saddle", saddled);
+    p.visible("bridle", saddled);
+    p.visible("reins", saddled && super::equine::is_vehicle(m));
     let prefix = if m.is_baby() {
         "CamelBabyAnimation.CAMEL_BABY_"
     } else {
@@ -502,6 +509,43 @@ mod tests {
             assert!((passenger_attachment_at(&m, 0, 2, true)[2] - 0.7).abs() < 1e-6);
             assert_eq!(passenger_attachment_at(&m, 0, 1, true)[2], 0.5);
         });
+    }
+
+    /// `CamelModel.toggleInvisibleParts`: the saddle and bridle show only
+    /// on a saddled camel, the reins only on a saddled camel with a rider.
+    #[test]
+    fn saddle_and_reins_show_only_when_saddled_and_ridden() {
+        let mut m = camel();
+        let kind = Arc::make_mut(&mut m.kind);
+        kind.model = Arc::new(Part::parse(
+            "root",
+            &json!({"children": {
+                "body": {"children": {"saddle": {}}},
+                "head": {"children": {"bridle": {}, "reins": {}}},
+            }}),
+        ));
+        let state = super::super::anim::state(&m, 0.5);
+        let animations = std::collections::HashMap::new();
+        // Unsaddled: saddle, bridle and reins all hidden.
+        let mut poses = super::super::anim::Poses::new(&m.kind.model);
+        anim(&m, &state, &mut poses, &animations);
+        assert!(poses.is_hidden_named("saddle"));
+        assert!(poses.is_hidden_named("bridle"));
+        assert!(poses.is_hidden_named("reins"));
+        // Saddled, unridden: saddle and bridle show, reins stay hidden.
+        m.extra.saddled = true;
+        let mut poses = super::super::anim::Poses::new(&m.kind.model);
+        anim(&m, &state, &mut poses, &animations);
+        assert!(!poses.is_hidden_named("saddle"));
+        assert!(!poses.is_hidden_named("bridle"));
+        assert!(poses.is_hidden_named("reins"));
+        // Saddled and ridden: all three show.
+        m.extra.rider = Some(2);
+        let mut poses = super::super::anim::Poses::new(&m.kind.model);
+        anim(&m, &state, &mut poses, &animations);
+        assert!(!poses.is_hidden_named("saddle"));
+        assert!(!poses.is_hidden_named("bridle"));
+        assert!(!poses.is_hidden_named("reins"));
     }
 
     /// `CamelAi.RandomSitting.checkExtraStartConditions`: a camel sits down

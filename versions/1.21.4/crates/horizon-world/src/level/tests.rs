@@ -3554,6 +3554,59 @@ fn update_shape_hook_can_answer_for_the_block() {
 }
 
 #[test]
+fn a_kelp_head_under_a_body_stays_a_head_when_its_support_changes() {
+    // `GrowingPlantHeadBlock.updateShape`: 1.21.4 has no look-ahead at the
+    // block in the growth direction when the neighbour against the growth
+    // changes (1.21.5 added it: a head under a head or body converts to a
+    // body). The head still converts when the neighbour in the growth
+    // direction itself becomes a head or body.
+    let Some(f) = fixture() else { return };
+    let b = &f.behaviours;
+    let kelp = f.registry.default_state("minecraft:kelp").unwrap();
+    let plant = f.registry.default_state("minecraft:kelp_plant").unwrap();
+    let stone = f.registry.default_state("minecraft:stone").unwrap();
+    let dirt = f.registry.default_state("minecraft:dirt").unwrap();
+    let mut level = TestLevel::new(b);
+    let mut ticks = Ticks::new(0);
+    ticks.add_empty_chunk(ChunkPos::new(0, 0)).unwrap();
+    // A head with a body above it, built raw (placing either would convert
+    // the head at once): changing its support below must not convert it.
+    let head = BlockPos::new(1, 1, 1);
+    level.set_raw(BlockPos::new(1, 0, 1), stone);
+    level.set_raw(head, kelp);
+    level.set_raw(BlockPos::new(1, 2, 1), plant);
+    b.set_block(
+        &mut level,
+        &mut ticks,
+        BlockPos::new(1, 0, 1),
+        dirt,
+        flags::UPDATE_ALL,
+    );
+    assert_eq!(
+        level.block_state(head),
+        kelp,
+        "the head stays a head in 1.21.4"
+    );
+    // The growth-direction branch still converts: a plant placed above a
+    // head turns it into a body.
+    let head2 = BlockPos::new(5, 1, 5);
+    level.set_raw(BlockPos::new(5, 0, 5), stone);
+    level.set_raw(head2, kelp);
+    b.set_block(
+        &mut level,
+        &mut ticks,
+        BlockPos::new(5, 2, 5),
+        plant,
+        flags::UPDATE_ALL,
+    );
+    assert_eq!(
+        level.block_state(head2),
+        plant,
+        "a plant above converts the head"
+    );
+}
+
+#[test]
 fn the_level_chooses_the_state_a_block_is_placed_in() {
     use crate::fluid::{FluidKind, FluidState};
     use horizon_core::geometry::Vec3;

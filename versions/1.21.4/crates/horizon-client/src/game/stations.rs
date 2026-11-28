@@ -2297,7 +2297,8 @@ impl Game<'_> {
                 );
             }
         }
-        // WrittenBookContent.addToTooltip.
+        // `WrittenBookItem.appendHoverText` (1.21.4; 1.21.5 moved this to
+        // `WrittenBookContent.addToTooltip`).
         for text in horizon_client::item_tooltip::written_book_lines(stack, &display, &translate) {
             push(&mut lines, text, gray);
         }

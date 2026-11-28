@@ -554,15 +554,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         body_state
                     }
                 };
-                if dir == growth.opposite() {
-                    if !self.can_survive(state, pos) {
-                        self.schedule_tick(pos, block, 1);
-                    } else {
-                        let next = self.rel_state(pos, growth);
-                        if b.is_block(next, block) || b.is_block(next, body) {
-                            return Some(to_body(self));
-                        }
-                    }
+                if dir == growth.opposite() && !self.can_survive(state, pos) {
+                    // 1.21.4 has no look-ahead at the block in the growth
+                    // direction here (1.21.5 added it: a head under a head or
+                    // body converts when the block against the growth
+                    // changes); a neighbour against the growth only schedules
+                    // a tick when the head cannot survive.
+                    self.schedule_tick(pos, block, 1);
                 }
                 if dir != growth || (!b.is_block(nstate, block) && !b.is_block(nstate, body)) {
                     if b.data(state).schedule_fluid_ticks {

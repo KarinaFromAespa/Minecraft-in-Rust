@@ -1,6 +1,6 @@
 {
   "generated_from": "16f750e52beb6ae65e838e3289c94d309c5bce0f147fb2eaf3fe4e5b7279fb0d",
-  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 348/348 (2026-11-27, batch 83: report ids 354-357 \u2014 all carry-over, no code changes; rank 2 complete). Rank 3 at 29/149 (2026-11-28, batch 87: report ids 384, 385, 393, 394 \u2014 384 respawn anchor carry-over, 385 goat ram blocking ported, 393 jigsaw final_state ported, 394 structure-block strict removed; plus the triage's 13 accepted rank-3 items recorded). Rank 4 at 0/39. Rank 5 at 2/2 (both accepted).",
+  "note": "Behaviour port in progress: rank 1 closed 10/10, rank 2 at 348/348 (2026-11-27, batch 83: report ids 354-357 \u2014 all carry-over, no code changes; rank 2 complete). Rank 3 at 33/149 (2026-11-28, batch 88: report ids 395, 397, 398, 399 \u2014 395 camel saddle/reins toggle ported, 397 trident carry-over, 398 book page resolution ported, 399 growing-plant head updateShape ported; plus the triage's 13 accepted rank-3 items recorded). Rank 4 at 0/39. Rank 5 at 2/2 (both accepted).",
   "rank1": {
     "accepted": [],
     "closed": 10,
@@ -27,7 +27,7 @@
       505,
       506
     ],
-    "closed": 29,
+    "closed": 33,
     "total": 149
   },
   "rank3plus": "Inherits the 1.21.5 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",

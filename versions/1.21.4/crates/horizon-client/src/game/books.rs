@@ -70,26 +70,37 @@ pub(super) enum BookScreen {
 }
 /// The pages a book screen reads: a written book's components (so their
 /// click events stay), else a writable book's text.
-fn view_pages(data: Option<&StackData>) -> Vec<Text> {
-    let Some(data) = data else { return Vec::new() };
-    let Some(w) = &data.written else {
-        return data.writable_pages.iter().map(Text::literal).collect();
-    };
-    let tagged = w.page_tags.len() == w.pages.len();
-    w.pages
-        .iter()
-        .enumerate()
-        .map(|(i, page)| match tagged.then(|| &w.page_tags[i]) {
-            // A component object, or a component list (`ComponentSerialization`
-            // takes both; servers behind ViaVersion send the list form).
-            Some(
-                tag @ (horizon_world::nbt::Tag::Compound(_) | horizon_world::nbt::Tag::List(_)),
-            ) => horizon_client::entity_nbt::name_text(tag),
-            _ => Text::literal(page),
-        })
-        .collect()
-}
 impl Game<'_> {
+    /// `WrittenBookItem.resolveBookComponents` at open: a written book's
+    /// pages resolve their selector and score components against this world
+    /// (`ComponentUtils.updateForEntity`), as 1.21.4's
+    /// `ServerPlayer.openItemGui` and `LecternBlockEntity.resolveBook` do
+    /// before the book is read. The resolution is done at view time, so the
+    /// stack keeps its unresolved pages and re-resolves on the next open.
+    fn view_pages(&mut self, data: Option<&StackData>) -> Vec<Text> {
+        let Some(data) = data else { return Vec::new() };
+        let Some(w) = &data.written else {
+            return data.writable_pages.iter().map(Text::literal).collect();
+        };
+        let tagged = w.page_tags.len() == w.pages.len();
+        w.pages
+            .iter()
+            .enumerate()
+            .map(|(i, page)| match tagged.then(|| &w.page_tags[i]) {
+                // A component object, or a component list (`ComponentSerialization`
+                // takes both; servers behind ViaVersion send the list form).
+                Some(
+                    tag @ (horizon_world::nbt::Tag::Compound(_)
+                    | horizon_world::nbt::Tag::List(_)),
+                ) => {
+                    let json = horizon_client::scoreboard::tag_to_json(tag);
+                    let resolved = self.resolve_component(json);
+                    horizon_client::scoreboard::comp_text(&resolved)
+                }
+                _ => Text::literal(page),
+            })
+            .collect()
+    }
     fn book_lines(&self, page: &str) -> Vec<Text> {
         self.page_lines(&Text::literal(page))
     }
@@ -191,7 +202,7 @@ impl Game<'_> {
     }
     /// The screen a book in hand opens: `BookEditScreen` for a book and
     /// quill, `BookViewScreen` for a written book.
-    fn book_screen(&self, stack: &ItemStack) -> Option<BookScreen> {
+    fn book_screen(&mut self, stack: &ItemStack) -> Option<BookScreen> {
         Some(match &*stack.item {
             "minecraft:writable_book" => {
                 let mut pages = stack
@@ -214,7 +225,7 @@ impl Game<'_> {
                 }
             }
             "minecraft:written_book" => BookScreen::View {
-                pages: view_pages(stack.data()),
+                pages: self.view_pages(stack.data()),
                 page: 0,
                 lectern: None,
             },
@@ -855,12 +866,17 @@ impl Game<'_> {
     /// `LecternBlock.openScreen`: reading the lectern's book.
     pub(super) fn open_lectern(&mut self, pos: [i32; 3]) -> bool {
         let key = (pos[0], pos[1], pos[2]);
-        let Some(BlockEntity::Lectern(l)) = self.world.block_entities.get(&key) else {
+        // The book is copied out first: resolving its pages borrows the game.
+        let Some((book, lectern_page)) =
+            self.world.block_entities.get(&key).and_then(|b| match b {
+                BlockEntity::Lectern(l) => l.book.as_ref().map(|book| (book.clone(), l.page)),
+                _ => None,
+            })
+        else {
             return false;
         };
-        let Some(book) = &l.book else { return false };
-        let pages = view_pages(book.data());
-        let page = (l.page.max(0) as usize).min(pages.len().saturating_sub(1));
+        let pages = self.view_pages(book.data());
+        let page = (lectern_page.max(0) as usize).min(pages.len().saturating_sub(1));
         self.award_custom_stat("interact_with_lectern", 1);
         self.open_book(BookScreen::View {
             pages,
@@ -1006,14 +1022,16 @@ impl Game<'_> {
     }
     /// `LecternScreen.bookChanged`: the menu's book slot.
     pub(super) fn remote_lectern_book(&mut self, book: Option<ItemStack>) {
+        let pages = self.view_pages(book.as_ref().and_then(ItemStack::data));
         if let Some(BookScreen::View {
             lectern: Some(_),
-            pages,
+            pages: old,
             page,
         }) = self.book.as_mut()
         {
-            *pages = view_pages(book.as_ref().and_then(ItemStack::data));
-            *page = (*page).min(pages.len().saturating_sub(1));
+            let len = pages.len();
+            *old = pages;
+            *page = (*page).min(len.saturating_sub(1));
         }
     }
     /// `LecternScreen.pageChanged`: the menu's page data slot.
@@ -1773,5 +1791,46 @@ mod lectern_reach_tests {
             game.book.is_none(),
             "the lectern screen stayed open out of reach"
         );
+    }
+}
+
+#[cfg(test)]
+mod book_resolve_tests {
+    use super::super::native_machines::tests::server_game;
+    use super::BookScreen;
+    use horizon_client::{
+        item_data::{StackData, WrittenBook},
+        items::ItemStack,
+    };
+    use horizon_world::nbt::Tag;
+
+    /// `WrittenBookItem.resolveBookComponents`: opening a written book
+    /// resolves its selector components (`ComponentUtils.updateForEntity`),
+    /// so a `{"selector": "@p"}` page does not show the raw selector.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn opening_a_book_resolves_its_selector_pages() {
+        let mut game = server_game();
+        let mut stack = ItemStack::new("minecraft:written_book", 1);
+        stack.extra = Some(Box::new(StackData {
+            written: Some(WrittenBook {
+                title: "T".into(),
+                author: "A".into(),
+                generation: 0,
+                pages: vec!["@p".into(), "plain".into()],
+                page_tags: vec![
+                    Tag::compound([("selector", Tag::String("@p".into()))]),
+                    Tag::compound([("text", Tag::String("plain".into()))]),
+                ],
+            }),
+            ..Default::default()
+        }));
+        let Some(BookScreen::View { pages, .. }) = game.book_screen(&stack) else {
+            panic!("a written book opens a view screen");
+        };
+        // Nobody is in the test world, so `@p` resolves to nothing — but it
+        // resolves: the raw selector is gone.
+        assert_eq!(pages[0].plain(), "", "the selector page resolved");
+        assert_eq!(pages[1].plain(), "plain", "a text page stays literal");
     }
 }
