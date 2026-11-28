@@ -7120,3 +7120,29 @@ the Rust implements getSprite, not calculateState. 489 (lan_screen.rs):
 PopupScreen.renderBackground swaps RenderSystem.clear(256) for the GPU
 command-encoder depth clear -- same visual effect, render plumbing.
 Rank 3 after batch 105: 13 accepted + 113 closed = 126/149; total 473/548.
+
+Batch 106 (2026-11-28, rank 3 G4: report ids 490, 491, 492, 494, 496, 498,
+499, 500): eight carry-overs, no code changes. 490 (native_profiles.rs):
+GameProfileCache swaps the authlib findProfilesByNames callback form for
+findProfileByName returning Optional -- same lookup; the Rust does not
+implement the server's profile cache. 491/492/494 (ominous spawner,
+painting, item display renderers): the same PoseStack.mulPose
+(Quaternionf) -> (Quaternionfc) widening, one call site each, no
+behaviour change. 496 (enderman.rs): EndermanFreezeWhenLookedAt.canUse
+moves to the instanceof-pattern form; same logic (target a Player,
+distance <= 256.0, stare at the eye), which the Rust already implements.
+498 (tree_execute.rs): ExecuteIfFunctionCustomModifier's
+scheduleFunctionConditionsAndTest call renames its function-getter
+parameter from CommandGetter to InCommandFunction -- same fork, a Java
+interface rename with no Rust counterpart. 499 (oracle.rs): DirtPathBlock
+stops sharing FarmBlock.SHAPE and defines its own Block.column(16, 0,
+15), the same box(0, 0, 0, 16, 15, 16); shapes come from prepared data.
+500 (upgrade/settings.rs): the one real 1.21.5 change in the batch --
+OverworldBiomeBuilder promotes pale garden to PLATEAU_BIOMES[2][4]
+(from dark forest) and nulls the variant there. It does not apply to
+the port: the Rust carries no copy of these tables; the multi-noise
+preset tables come from per-version prepared presets.json, generated
+from the 1.21.4 jar's own builder. (Trap noted: the 1.21.5 jars dir has
+no server-named jar -- server classes must be diffed against the
+1.21.5 client jar, which holds them too.) Rank 3 after batch 106: 13
+accepted + 121 closed = 134/149; total 481/548.

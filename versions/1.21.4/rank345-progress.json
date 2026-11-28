@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 105,
-  "note": "Batch 105 (2026-11-28, rank 3 G4: report ids 479, 481, 484, 485, 486, 487, 488, 489): eight carry-overs, no code changes; G4 long-tail verification sweep continues.",
+  "batch": 106,
+  "note": "Batch 106 (2026-11-28, rank 3 G4: report ids 490, 491, 492, 494, 496, 498, 499, 500): eight carry-overs, no code changes; G4 long-tail verification sweep continues. Note: the 1.21.5 jars dir has no server-named jar \u2014 server classes diff against the 1.21.5 client jar, which holds them too.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -588,6 +588,46 @@
       "module": "crates/horizon-client/src/game/lan_screen.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 105, jar-verified 2026-11-28): PopupScreen 1m \u2014 renderBackground replaces RenderSystem.clear(256) (clear depth) with the 1.21.5 GPU-device command-encoder depth clear (getDevice().createCommandEncoder() + the main target's depth texture). Same visual effect: the depth buffer is cleared before the popup background draws. The Rust's Popup (lan_screen.rs:416) is a layout struct (title/message/buttons/frame); its background dim is drawn by the generic screen-background code, and the renderer owns clears \u2014 no popup-specific change."
+    },
+    "490": {
+      "module": "crates/horizon-client/src/game/native_profiles.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): GameProfileCache 1m \u2014 1.21.5 replaces the authlib lookup GameProfileRepository.findProfilesByNames(String[], ProfileLookupCallback) (with an AtomicReference + GameProfileCache$1 callback) by findProfileByName(String) returning Optional directly. Same lookup, same result; the authlib API changed, not the behaviour. The Rust does not implement GameProfileCache: native_profiles.rs is the native-mods profile-property helpers (set a skin/textures property, hide/show a player), not the server's name->profile cache."
+    },
+    "491": {
+      "module": "crates/horizon-client/src/game/ominous_item_spawner.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): OminousItemSpawnerRenderer 1m \u2014 PoseStack.mulPose(Quaternionf) -> mulPose(Quaternionfc) (the read-only quaternion interface), one call site, no behaviour change. The Rust has no Java PoseStack overload to update."
+    },
+    "492": {
+      "module": "crates/horizon-client/src/game/paintings.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): PaintingRenderer 1m \u2014 PoseStack.mulPose(Quaternionf) -> mulPose(Quaternionfc), one call site, no behaviour change (same as 491/494)."
+    },
+    "494": {
+      "module": "crates/horizon-client/src/game/text_displays.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): DisplayRenderer$ItemDisplayRenderer 1m \u2014 PoseStack.mulPose(Quaternionf) -> mulPose(Quaternionfc), one call site, no behaviour change (same as 491/492)."
+    },
+    "496": {
+      "module": "crates/horizon-client/src/mobs/enderman.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): EnderMan$EndermanFreezeWhenLookedAt 1m \u2014 canUse moves from instanceof + explicit cast to the pattern-matching form (target instanceof Player player, stored in a local instead of re-reading the field and casting in tick). Same logic: target must be a Player, distanceToSqr <= 256.0 (jar-verified constant), then look at the player's eye position. The Rust's FreezeWhenLookedAt matches: flags JUMP|MOVE, can_use requires target Player + distance_sqr <= 256.0 + stared_at, tick look_at the player's eye."
+    },
+    "498": {
+      "module": "crates/horizon-command/src/tree_execute.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): ExecuteCommand$ExecuteIfFunctionCustomModifier 1m \u2014 apply's scheduleFunctionConditionsAndTest call changes its function-getter parameter from ExecuteCommand$CommandGetter to the new InCommandFunction interface (invokedynamic :get: -> :apply:). Same fork: run the named function when the predicate passes. The Rust registers '/execute if function <name>' as a redirect to the fork (tree_execute.rs:201, 'a fork only (not a test command)'); the Java interface rename has no Rust counterpart."
+    },
+    "499": {
+      "module": "crates/horizon-port-pack/src/oracle.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): DirtPathBlock 1m \u2014 SHAPE goes protected -> private and its static init stops sharing FarmBlock.SHAPE, defining its own Block.column(16.0, 0.0, 15.0), which is the same box(0, 0, 0, 16, 15, 16) FarmBlock.SHAPE already was. Identical geometry; the Rust takes block shapes from prepared block data, not from a hardcoded table (the report's oracle.rs module mapping is heuristic)."
+    },
+    "500": {
+      "module": "crates/horizon-port-pack/src/upgrade/settings.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): OverworldBiomeBuilder 1m \u2014 two entries in the constructor's biome tables change: PLATEAU_BIOMES[2][4] goes DARK_FOREST -> PALE_GARDEN, and PLATEAU_BIOMES_VARIANT[2][4] goes PALE_GARDEN -> null (no variant, so the plateau cell falls back to the base table, now pale garden). This is a real 1.21.5 worldgen table edit, but it does not apply to the 1.21.4 port: the Rust carries no hardcoded copy of these tables \u2014 the multi-noise preset tables come from per-version prepared data (presets.json, generator.rs:355 'Multi-noise tables come from presets.json', read via read_optional_bundle), which is generated from the 1.21.4 jar's own OverworldBiomeBuilder. The 1.21.4 values (dark forest base / pale garden variant at [2][4]) flow through prepare; nothing in the Rust needs changing. (The report's upgrade/settings.rs module mapping is heuristic.)"
     }
   }
 }
