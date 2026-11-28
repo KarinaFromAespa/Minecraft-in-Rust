@@ -329,10 +329,19 @@ fn invalid_and_generated_sprites_match_vanilla() {
         [r.u0, r.v0, r.u1, r.v1],
         [1.0 / 128.0, 1.0 / 64.0, 17.0 / 128.0, 33.0 / 64.0]
     );
-    let r = atlas["test:item/trim_red"];
+    let r = atlas["test:item/trim"];
     assert_eq!(
         [r.u0, r.v0, r.u1, r.v1],
         [19.0 / 128.0, 37.0 / 64.0, 27.0 / 128.0, 53.0 / 64.0]
+    );
+    // The blocks atlas's `item/` directory source lists every namespace's
+    // textures/item/*, so moving the trim texture to test:item/trim also
+    // stitches the base texture; it takes the (19,37) slot the permuted
+    // sprite used to occupy, and the permuted sprite packs after it.
+    let r = atlas["test:item/trim_red"];
+    assert_eq!(
+        [r.u0, r.v0, r.u1, r.v1],
+        [33.0 / 128.0, 19.0 / 64.0, 41.0 / 128.0, 35.0 / 64.0]
     );
     assert!(!atlas.contains_key("test:missing_alias"));
     fs::remove_dir_all(root).unwrap();
