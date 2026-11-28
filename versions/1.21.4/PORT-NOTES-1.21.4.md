@@ -6906,3 +6906,40 @@ shape for the review batches.
   as a Byte where vanilla writes an Int; both versions' readers accept
   any numeric tag, so a Rust-written piece loads identically in either
   vanilla version.
+  Batch 98 (2026-11-28, rank 3 G3: report ids 434, 443, 452, 453). Rank 3 now
+  68/149 (13 accepted + 55 closed); total 428/548. All four CARRY-OVER,
+  no code change -- the same 1.21.5 NBT accessor modernization as batch
+  97, plus one behavior-identical slab restructure. 434 (structure.rs):
+  SlabBlock.getShape is a switch restructure only (1.21.4 lookupswitch
+  via $SwitchMap DOUBLE->1, TOP->2, default BOTTOM; 1.21.5 tableswitch
+  BOTTOM->1, TOP->2, DOUBLE->3; same shapes: BOTTOM->bottom half,
+  TOP->top half, DOUBLE->Shapes.block()), field renames
+  BOTTOM_AABB/TOP_AABB -> SHAPE_BOTTOM/SHAPE_TOP, static-init factory
+  change with identical bounds; canPlaceLiquid widens Player->
+  LivingEntity with the parameter unused for the decision (1.21.4 body:
+  DOUBLE -> false, else SimpleWaterloggedBlock.canPlaceLiquid); Mirror
+  gains only LEGACY_CODEC (static-init only, no behavioral method);
+  SlabBlock$1 is the synthetic switch-map companion. The Rust already
+  implements the 1.21.4 form: fluids.rs can_place_liquid refuses double
+  slabs and otherwise allows water only; slab shapes are per-version
+  prepared data (blocks.rs outline); Mirror has the three values with
+  correct saved names. 443 (fortress.rs): the only diff in all four
+  classes (BridgeEndFiller, CastleSmallCorridorLeftTurnPiece,
+  CastleSmallCorridorRightTurnPiece, MonsterThrone) is the NBT
+  constructor reading its seed via getInt("Seed") vs getIntOr("Seed", 0)
+  (old getInt returns 0 for a missing key; identical). The Rust
+  generates fortress pieces (seed drawn at generation, LegacyRandom::
+  new(seed)) and never deserializes them from NBT; save already writes
+  "Seed". 452 (mansion.rs): addAdditionalSaveData writes Rot/Mi via
+  putString(name) vs store(name, LEGACY_CODEC) (same name strings);
+  lambda$new$0 reads Mirror/Rotation via valueOf(getString) vs read
+  (name, LEGACY_CODEC).orElseThrow() (same values). The Rust already
+  reads Rot/Mi as saved names (saved_templates.rs) and writes
+  Tag::String(saved_name()) (simple.rs). 453 (ocean_ruin.rs): create()
+  is the same migration: Rot via valueOf(getString) vs read(LEGACY_
+  CODEC).orElseThrow(), Integrity via getFloat vs getFloatOr(0.0f),
+  BiomeType via valueOf(getString) vs read(LEGACY_CODEC).orElseThrow(),
+  IsLarge via getBoolean vs getBooleanOr(false); all identical
+  values/defaults. The Rust already reads BiomeType as WARM/COLD text,
+  Integrity as float default 0.0, IsLarge as flag
+  (saved_templates.rs).

@@ -27,7 +27,7 @@
       505,
       506
     ],
-    "closed": 64,
+    "closed": 68,
     "total": 149
   },
   "rank3plus": "Inherits the 1.21.5 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",

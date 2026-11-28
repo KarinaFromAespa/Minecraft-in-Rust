@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 97,
-  "note": "Batch 97 (2026-11-28, rank 3 G3: report ids 389, 422, 423, 430): all four CARRY-OVER -- the 1.21.5 NBT accessor modernization (getBoolean/getInt -> getBooleanOr/getIntOr, putString -> store(LEGACY_CODEC), encodeStart -> store) with identical bytes and values; spawnElder is moveTo -> snapTo with the same args. Rank 3 now 64/149 (13 accepted + 51 closed); total 424/548.",
+  "batch": 98,
+  "note": "Batch 98 (2026-11-28, rank 3 G3: report ids 434, 443, 452, 453): all four CARRY-OVER -- the same 1.21.5 NBT accessor modernization as batch 97 (getInt/getFloat/getBoolean -> getIntOr/getFloatOr/getBooleanOr, putString/valueOf -> store/read(LEGACY_CODEC)), plus SlabBlock's behavior-identical getShape switch restructure and canPlaceLiquid Player->LivingEntity widening; the Rust already implements the 1.21.4 forms (fluids.rs can_place_liquid, saved_templates.rs Rot/Mi/BiomeType/Integrity/IsLarge, simple.rs Rot/Mi writes). No code changes.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -343,6 +343,26 @@
       "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 97, jar-verified 2026-11-28): MineshaftPieces -- every diff is the 1.21.5 NBT accessor modernization: Room's Entrances encode via BoundingBox.CODEC.listOf().encodeStart(NbtOps) in 1.21.4, via store(name, CODEC.listOf()) in 1.21.5 (same int-array list bytes); load via getList + parse + ifPresent addAll vs read().orElse(empty) + addAll (same result, incl. missing tag). Crossing's D writes putInt(get2DDataValue()) vs store(LEGACY_ID_CODEC_2D) and reads getInt + from2DDataValue (wraps mod 4, jar-verified identical in both versions) vs read().orElse(SOUTH) -- same direction for every int, missing tag included. tf/hr/sc/hps/Num/MST read getBoolean/getInt vs getBooleanOr(false)/getIntOr(0) with identical defaults. createRandomShaftPiece's 1.21.4-only tail is a dead logger init after areturn. The Rust's save() writes MST as Int, Entrances as a list of 6-int arrays, flags as Byte, Num as Int, D as Byte(data_2d) -- the 1.21.4 values. No loader exists for mineshaft pieces (generator_structures.rs: only jigsaw pieces load from saved starts), so the load-form diffs have no Rust code. No code change. Pre-existing note, not fixed: the Rust writes D as a Byte where vanilla writes an Int; both versions' readers accept any numeric tag, so a Rust-written piece loads identically in either vanilla version."
+    },
+    "434": {
+      "module": "crates/horizon-world/src/worldgen/structure.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 98, jar-verified 2026-11-28): SlabBlock -- getShape switch restructured only (1.21.4 lookupswitch via $SwitchMap DOUBLE->1, TOP->2, default BOTTOM; 1.21.5 tableswitch BOTTOM->1, TOP->2, DOUBLE->3; same shapes: BOTTOM->bottom half, TOP->top half, DOUBLE->Shapes.block()), field renames BOTTOM_AABB/TOP_AABB -> SHAPE_BOTTOM/SHAPE_TOP, static-init factory change with identical bounds; canPlaceLiquid widens Player->LivingEntity with the parameter unused for the decision (1.21.4 body: DOUBLE -> false, else SimpleWaterloggedBlock.canPlaceLiquid); Mirror gains only LEGACY_CODEC (static-init only, no behavioral method); SlabBlock$1 is the synthetic switch-map companion. The Rust already implements the 1.21.4 form: fluids.rs can_place_liquid refuses double slabs and otherwise allows water only; slab shapes are per-version prepared data (blocks.rs outline); Mirror has the three values with correct saved names (structure.rs). No code change."
+    },
+    "443": {
+      "module": "crates/horizon-world/src/worldgen/structure/fortress.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 98, jar-verified 2026-11-28): NetherFortressPieces -- the only diff in all four classes (BridgeEndFiller, CastleSmallCorridorLeftTurnPiece, CastleSmallCorridorRightTurnPiece, MonsterThrone) is the NBT constructor reading its seed via CompoundTag.getInt(\"Seed\") in 1.21.4 vs getIntOr(\"Seed\", 0) in 1.21.5 (old getInt returns 0 for a missing key; identical). The Rust generates fortress pieces (seed drawn at generation, fortress.rs:121, LegacyRandom::new(seed) at :434) and never deserializes them from NBT; save already writes \"Seed\" (:885). No code change."
+    },
+    "452": {
+      "module": "crates/horizon-world/src/worldgen/structure/mansion.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 98, jar-verified 2026-11-28): WoodlandMansionPieces$WoodlandMansionPiece -- all three diffs are the 1.21.5 NBT codec migration with identical bytes: addAdditionalSaveData writes Rot/Mi via putString(name) in 1.21.4, via store(name, LEGACY_CODEC) in 1.21.5 (LEGACY_CODEC encodes the enum name); lambda$new$0 reads Mirror/Rotation via valueOf(getString) in 1.21.4, via CompoundTag.read(name, LEGACY_CODEC).orElseThrow() in 1.21.5 (same values). The Rust already reads Rot/Mi as saved names (saved_templates.rs:82,155) and writes Tag::String(saved_name()) (simple.rs:271-272). No code change."
+    },
+    "453": {
+      "module": "crates/horizon-world/src/worldgen/structure/ocean_ruin.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 98, jar-verified 2026-11-28): OceanRuinPieces$OceanRuinPiece -- create() is the 1.21.5 NBT accessor modernization only: Rot via Rotation.valueOf(getString) -> read(Rotation.LEGACY_CODEC).orElseThrow(); Integrity via getFloat -> getFloatOr(0.0f); BiomeType via Type.valueOf(getString) -> read(Type.LEGACY_CODEC).orElseThrow(); IsLarge via getBoolean -> getBooleanOr(false); all identical values/defaults. The Rust already reads BiomeType as WARM/COLD text, Integrity as float default 0.0, IsLarge as flag (saved_templates.rs:109,114,119). No code change."
     }
   }
 }
