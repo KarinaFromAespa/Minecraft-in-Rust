@@ -7067,3 +7067,28 @@ shape for the review batches.
   parameter meanings changed half-width -> full width; the union
   geometry (post 6,0,6,10,16,10, arms to the edges, collision post 24
   tall) is identical in both versions.
+
+  Batch 104 (2026-11-28, rank 3 G4: report ids 467, 468, 469, 470, 471,
+  472, 474, 478). Rank 3 now 118/149 (13 accepted + 105 closed); total
+  465/548. Eight carry-overs, no code changes. 467 (equippable.rs):
+  1.21.5 adds equipOnInteract to the Equippable builder, read by
+  ItemStack.interactLivingEntity; the Rust's menu code reads only the
+  slot and allowed entities, and the other two references (a nautilus
+  saddle comment for a 1.21.5-only mob; the item hash shape) are inert
+  for 1.21.4 data. 468 (armadillo.rs): the state CODEC changes type
+  and fromName is removed; the enum order (IDLE, ROLLING, SCARED,
+  UNROLLING) matches the Rust's 0..3 and the Rust parses the state from
+  entity data. 469 (body_anim.rs): PolarBearModel.createBodyLayer gains
+  a baby flag that applies BABY_TRANSFORMER inside; same mesh, same
+  scale. 470 (model_layers.rs): MeshDefinition.apply is new in 1.21.5
+  and clearChild now preserves the pose and throws when missing; the
+  Rust's builders have neither method. 471 (nether.rs): the blaze and
+  ghast ticks widen a levelEvent source from Player to Entity; the
+  Rust's goals emit no level events. 472 (lithostitched.rs): the
+  jigsaw getters are new public accessors for fields 1.21.4 already
+  has; the Rust reads the start pool and bindings from the structure
+  data. 474 (ticks.rs): the redstone torch hook rename, body identical
+  (notifyNeighbors); the Rust already handles it under the new hook
+  name. 478 (gui components/events): ContainerEventHandler.mouseReleased
+  drops its getChildAt fallback in 1.21.5; the Rust has no such
+  dispatch -- its releases are per-screen.

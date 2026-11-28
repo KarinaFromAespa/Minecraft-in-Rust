@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 103,
-  "note": "Batch 103 (2026-11-28, rank 3 G4: report ids 450, 451, 456, 458, 460, 461, 462, 463): eight carry-overs, no code changes except a doc-citation fix in 458 (tropical fish tooltip cited the 1.21.5 location); G4 long-tail verification sweep continues.",
+  "batch": 104,
+  "note": "Batch 104 (2026-11-28, rank 3 G4: report ids 467, 468, 469, 470, 471, 472, 474, 478): eight carry-overs, no code changes; G4 long-tail verification sweep continues.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -508,6 +508,46 @@
       "module": "crates/horizon-client/src/game/leads.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 103, jar-verified 2026-11-28): FenceBlock 2m \u2014 the CrossCollisionBlock shape plumbing was restructured (eager VoxelShape[] by index -> lazy Function per state, makeShapes via Block.column/BoxZ + Shapes.rotateHorizontal), and the parameter meanings changed from half-widths to full widths with the FenceBlock call sites updated. The resulting geometry is identical in union: outline post box(6, 0, 6, 10, 16, 10) (1.21.4 makeShapes(2,2,16,0,16) post box(8-2,0,8-2,8+2,16,8+2); 1.21.5 makeShapes(4,16,4,0,16) post column(4,16,0)), arms x/z 6..10, y 0..16 to the block edges (1.21.5's arm boxes stop at the centre 8 instead of extending to 8+p2 = 10, but the union with the post covers the same volume), collision post 24 tall in both. The Rust holds no hardcoded fence shape (shapes come from prepared block data); leads.rs itself is the leash/knot logic, untouched by this diff."
+    },
+    "467": {
+      "module": "crates/horizon-client/src/menu/equippable.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): Equippable$Builder 2m \u2014 1.21.5 adds an equipOnInteract field + setEquipOnInteract(boolean); build() passes it to the Equippable record ctor. ItemStack.interactLivingEntity reads it in 1.21.5 (right-clicking a living entity with the item equips it); 1.21.4's interactLivingEntity just delegates to Item.interactLivingEntity. The Rust's menu/equippable.rs reads only the slot + allowed_entities from the component \u2014 no equipOnInteract. The two other references are inert in 1.21.4: nautili.rs:111 cites it for saddling a tame adult nautilus (a 1.21.5-only mob, unreachable in 1.21.4 \u2014 same class as the batch-102 nautilus saddle note, left alone) and the item hash (horizon-protocol item/hash) lists equip_on_interact in the equippable Shape but or_default omits it when false, which is always for 1.21.4 data. Per-mob saddling (pig/strider/horse) stays in the 1.21.4 per-mob interact code."
+    },
+    "468": {
+      "module": "crates/horizon-client/src/mobs/armadillo.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): Armadillo$ArmadilloState 2m \u2014 the CODEC field changes type (StringRepresentable$EnumCodec -> Codec) and fromName(String) is removed in 1.21.5. The enum values and order are identical in both versions (IDLE, ROLLING, SCARED, UNROLLING), matching the Rust's IDLE=0, ROLLING=1, SCARED=2, UNROLLING=3. The Rust parses the state as a clamped u8 from entity data (remote_mob_data.rs:205), never via fromName, and serializes by name through the codec either way."
+    },
+    "469": {
+      "module": "crates/horizon-client/src/mobs/body_anim.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): PolarBearModel 2m \u2014 createBodyLayer() -> createBodyLayer(boolean): the boolean selects BABY_TRANSFORMER vs IDENTITY inside (LayerDefinition.create(...).apply(baby ? BABY_TRANSFORMER : IDENTITY).apply(scaling(...))), where 1.21.4's createBodyLayer() applied only the scaling and left the baby transformer to the caller; BABY_TRANSFORMER also goes public static -> private static. Same mesh, same baby scale. The Rust renders polar_bear#main with baby age_scale 0.5 in polar_bear setupAnim."
+    },
+    "470": {
+      "module": "crates/horizon-client/src/mobs/model_layers.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): MeshDefinition 1m + PartDefinition 1m. 1.21.5 adds MeshDefinition.apply(MeshTransformer); PartDefinition.clearChild is rewritten \u2014 it still replaces the child with an empty CubeListBuilder, but now preserves the child's existing partPose (1.21.4 reset it to PartPose.ZERO) and throws IllegalArgumentException when the child does not exist (1.21.4 silently created an empty one). The Rust's builders implement neither method: MeshDefinition has new/root/add_or_replace_child/child, LayerDefinition has create/bake_root only. The geometry the builders produce is unchanged."
+    },
+    "471": {
+      "module": "crates/horizon-client/src/mobs/nether.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): Blaze$BlazeAttackGoal 1m + Ghast$GhastShootFireballGoal 1m \u2014 both ticks change only the Level.levelEvent call's first parameter type, Player -> Entity (1.21.5 widened the event's source to any entity). Same event id, same position, same data. The Rust's blaze/ghast goals emit no level events, so the widening is moot."
+    },
+    "472": {
+      "module": "crates/horizon-port-pack/src/lithostitched.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): JigsawStructure 2m \u2014 1.21.5 adds public getStartPool() + getPoolAliases() getters. Both fields already exist as private finals in 1.21.4 (startPool, poolAliases, both taken by the ctors). The Rust's jigsaw code already reads the start pool and the pool-alias bindings from the structure definition data (jigsaw.rs start_pool, bindings; formations.rs/generators). The lithostitched set_pool_aliases operation writes aliases, it does not read the getters."
+    },
+    "474": {
+      "module": "crates/horizon-world/src/level/ticks.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): RedstoneTorchBlock 2m \u2014 onRemove -> affectNeighborsAfterRemoval, the same hook rename as 441. Both bodies are a single notifyNeighbors call, identical. The Rust's level/hooks.rs affect_neighbors_after_removal already handles Class::RedstoneTorch with torch_notify_neighbors (when not moved); ticks.rs holds the RECENT_TOGGLES burnout list, untouched by this diff."
+    },
+    "478": {
+      "module": "widely named: client/gui/components/events",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 104, jar-verified 2026-11-28): ContainerEventHandler 2m \u2014 mouseReleased drops its getChildAt fallback in 1.21.5: 1.21.4 returns the focused listener's result OR whether a child sits at the release position (getChildAt + filter + isPresent); 1.21.5 returns only the focused listener's result (the mouseReleased$0 filter lambda is gone, hence the lambda renumbering). The Rust does not implement the ContainerEventHandler dispatch: its releases are per-screen (inventory_mouse_release via container_screen::Release/Target in inventory_input.rs) with no child-at-position fallback, and none of the five heuristically-mapped files (gamepad.rs, key_focus.rs, pad_menu.rs, trading.rs, screen_narrator.rs) implements mouseReleased."
     }
   }
 }
