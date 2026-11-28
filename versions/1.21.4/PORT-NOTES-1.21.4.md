@@ -6723,3 +6723,27 @@ shape for the review batches.
   time is dropped (Env::resolve trait method and the GameEnv override
   removed; Game::resolve_component stays for the books/bossbars
   display-time paths).
+  Batch 94 (2026-11-28, rank 3 G2: report ids 391, 392). Rank 3 now
+  51/149 (13 accepted + 38 closed); total 411/548. 391 CARRY-OVER
+  (codec.rs): ResourceOrIdArgument.parse's 1.21.5 change is a
+  representation-only refactor (parseInlineOrId returns Dynamic<T>
+  via the shared VALUE_PARSER instead of a Tag; same fallback order,
+  same errors) and NestedLootTable's KEY_CODEC is just
+  ResourceKey.codec(Registries.LOOT_TABLE) hoisted -- the Rust has no
+  NestedLootTable model. Pre-existing nuance, not a delta: the Rust
+  tries the id form first (unknown id -> no_such_element) while
+  vanilla tries the SNBT value first (unknown id -> failed_to_parse).
+  392 PORT + carry-overs (text_commands): NbtContents.resolve with
+  interpret=true now parses the tag's string form as strict JSON
+  (1.21.4's Component.Serializer.fromJson; the Rust had the 1.21.5
+  decode-the-tag form) via interpret_nbt_text, with selectors
+  resolved through the extracted resolve_selector_component. The
+  non-interpreting path is identical between versions (getAsString ==
+  asString, ', ' join); TellRawCommand is getComponent +
+  updateForEntity per player == getResolvedComponent per player, and
+  TitleCommand is a getComponent -> getRawComponent rename with
+  showTitle identical. Pre-existing gaps, noted not fixed: tellraw /
+  title resolve once against the source where vanilla resolves per
+  recipient; non-interpreting string tags render quoted-and-green;
+  the separator field is ignored; NbtContents has no 'plain' field in
+  either version.

@@ -56,6 +56,26 @@ fn compile_selector(source: &str, reg: &horizon_client::command::Registries) -> 
     }
 }
 
+/// The 1.21.4 interpreting parse (`NbtContents.resolve`): the tag's string
+/// form (`Tag.getAsString`: a string tag's raw value, anything else SNBT)
+/// as strict JSON, and only a component shape (a string, an object, or an
+/// array of components). Anything else -- not JSON, a bare number, a
+/// compound whose SNBT is not JSON -- is not a component and renders
+/// nothing (vanilla logs a warning and yields an empty stream).
+fn interpret_component_json(tag: &horizon_world::nbt::Tag) -> Option<serde_json::Value> {
+    use horizon_world::nbt::Tag;
+    let s = match tag {
+        Tag::String(s) => s.to_string_lossy(),
+        _ => horizon_client::snbt::pretty(tag).plain(),
+    };
+    let value = serde_json::from_str::<serde_json::Value>(&s).ok()?;
+    matches!(
+        value,
+        serde_json::Value::String(_) | serde_json::Value::Object(_) | serde_json::Value::Array(_)
+    )
+    .then_some(value)
+}
+
 impl Game<'_> {
     /// ComponentArgument with selectors resolved for the source
     /// (ComponentUtils.updateForEntity: names joined by ", ").
@@ -104,25 +124,7 @@ impl Game<'_> {
             };
             resolved.push((o, t));
         }
-        let mut resolve = |raw: &str| -> Text {
-            let mut reader = horizon_client::command::Reader::new(raw);
-            let entities = horizon_client::command::args::ArgType::Entity {
-                single: false,
-                players: false,
-            };
-            let Ok(Arg::Entity(sel)) = entities.parse(&mut reader, &self.ui.registries) else {
-                return Text::literal(raw);
-            };
-            let found = self.select(&sel);
-            let mut out = Text::empty();
-            for (i, t) in found.into_iter().enumerate() {
-                if i > 0 {
-                    out.push(Text::literal(", "));
-                }
-                out.push(self.target_name(t));
-            }
-            out
-        };
+        let mut resolve = |raw: &str| -> Text { self.resolve_selector_component(raw) };
         Ok(horizon_client::component::to_text_with(
             &value,
             &mut resolve,
@@ -182,6 +184,43 @@ impl Game<'_> {
             ));
         Ok(format.format(score.value))
     }
+    /// The `selector` of a selector component, resolved against the source
+    /// (ComponentUtils.updateForEntity: names joined by ", ").
+    fn resolve_selector_component(&mut self, raw: &str) -> Text {
+        let mut reader = horizon_client::command::Reader::new(raw);
+        let entities = horizon_client::command::args::ArgType::Entity {
+            single: false,
+            players: false,
+        };
+        let Ok(Arg::Entity(sel)) = entities.parse(&mut reader, &self.ui.registries) else {
+            return Text::literal(raw);
+        };
+        let found = self.select(&sel);
+        let mut out = Text::empty();
+        for (i, t) in found.into_iter().enumerate() {
+            if i > 0 {
+                out.push(Text::literal(", "));
+            }
+            out.push(self.target_name(t));
+        }
+        out
+    }
+    /// The text of an `nbt` component with `interpret` (1.21.4's
+    /// `NbtContents.resolve`): the tag's string form (`Tag.getAsString`:
+    /// a string tag's raw value, anything else SNBT) parsed as strict JSON
+    /// (`Component.Serializer.fromJson`); a value that is not JSON, or not
+    /// a component, renders nothing. 1.21.5 decodes the tag itself as a
+    /// component instead (`ComponentSerialization.CODEC`).
+    fn interpret_nbt_text(&mut self, tag: &horizon_world::nbt::Tag) -> Text {
+        let Some(value) = interpret_component_json(tag) else {
+            return Text::empty();
+        };
+        horizon_client::component::to_text_with(
+            &value,
+            &mut |raw| self.resolve_selector_component(raw),
+            &mut |_| None,
+        )
+    }
     /// The text of an `nbt` component.
     fn resolve_nbt_component(&mut self, o: &serde_json::Map<String, serde_json::Value>) -> Text {
         use horizon_world::nbt::Tag;
@@ -232,9 +271,7 @@ impl Game<'_> {
                 }
                 first = false;
                 let piece = if interpret {
-                    horizon_client::scoreboard::comp_text(&horizon_client::scoreboard::tag_to_json(
-                        &tag,
-                    ))
+                    self.interpret_nbt_text(&tag)
                 } else if plain {
                     Text::literal(horizon_client::snbt::pretty(&tag).plain())
                 } else {
@@ -360,7 +397,7 @@ impl Game<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::invalid_selector;
+    use super::{interpret_component_json, invalid_selector};
     use horizon_client::command::Registries;
 
     fn check(json: &str) -> Option<String> {
@@ -397,6 +434,40 @@ mod tests {
         assert_eq!(
             check(r#"{"score":{"name":"@a foo","objective":"o"}}"#),
             None
+        );
+    }
+
+    #[test]
+    fn interpreting_nbt_parses_the_strings_form_as_json() {
+        use horizon_world::nbt::{Compound, JavaString, Tag};
+        // A string tag holding JSON is the component.
+        assert_eq!(
+            interpret_component_json(&Tag::String("{\"text\":\"Bob\"}".into())),
+            Some(serde_json::json!({"text": "Bob"}))
+        );
+        // A plain string is not JSON: 1.21.4 renders nothing.
+        assert_eq!(interpret_component_json(&Tag::String("Bob".into())), None);
+        // A quoted string is a JSON string component.
+        assert_eq!(
+            interpret_component_json(&Tag::String("\"hi\"".into())),
+            Some(serde_json::json!("hi"))
+        );
+        // A compound's SNBT is not JSON (unquoted keys): 1.21.4 renders
+        // nothing, where 1.21.5 would decode the tag itself as the component.
+        let compound = Tag::Compound(Compound::from([(
+            JavaString::from("text"),
+            Tag::String("hi".into()),
+        )]));
+        assert_eq!(interpret_component_json(&compound), None);
+        // A bare number is not a component.
+        assert_eq!(interpret_component_json(&Tag::Int(5)), None);
+        // A list of strings is a JSON array of components.
+        assert_eq!(
+            interpret_component_json(&Tag::List(vec![
+                Tag::String("a".into()),
+                Tag::String("b".into())
+            ])),
+            Some(serde_json::json!(["a", "b"]))
         );
     }
 }
