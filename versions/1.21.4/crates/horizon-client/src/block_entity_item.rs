@@ -107,23 +107,29 @@ pub fn spawn_egg_entity_data<'a>(
     Some(data)
 }
 
-/// `EntityType.appendDefaultStackConfig` for a hanging entity or armor stand an
-/// item places: `Entity.applyImplicitComponents` stores the item's
-/// `minecraft:custom_data` as the entity's `data`, then `updateCustomEntityTag`
-/// (`TypedEntityData.loadInto`) merges the item's `minecraft:entity_data` over
-/// the entity's saved tag `own` when its type is `kind`.
+/// `EntityType.updateCustomEntityTag` for a hanging entity or armor stand an
+/// item places, as 1.21.4's `HangingEntityItem.useOn` and
+/// `ArmorStandItem.useOn` apply it (`CustomData.loadInto`): the item's
+/// `minecraft:custom_data` merged over the entity's saved tag `own` — but
+/// only when it names this entity's type, since `parseEntityType` is null
+/// without an `id` and the tag is dropped on a mismatch. There is no typed
+/// `minecraft:entity_data` component in 1.21.4 (that, and the entity's `data`
+/// field, are 1.21.5), and the op gate (`onlyOpCanSetNbt`) never fires for
+/// the kinds placed through here.
 pub fn stack_configured_entity(stack: &crate::items::ItemStack, kind: &str, own: &Tag) -> Tag {
-    let mut tag = own.clone();
-    if let (Tag::Compound(map), Some(custom)) = (
-        &mut tag,
-        stack.data().and_then(|d| d.other("minecraft:custom_data")),
-    ) {
-        map.insert("data".into(), custom.clone());
+    let Some(Tag::Compound(custom)) = stack.data().and_then(|d| d.other("minecraft:custom_data"))
+    else {
+        return own.clone();
+    };
+    if custom.is_empty() {
+        return own.clone();
     }
-    match spawn_egg_entity_data(stack, kind, false) {
-        Some(data) => crate::data_cmd::merged(&tag, data),
-        None => tag,
+    // `parseEntityType`: the tag must carry this entity's type id.
+    if crate::save::text(custom.get(&JavaString::from("id"))).as_deref() != Some(kind) {
+        return own.clone();
     }
+    // `CustomData.loadInto`: save, merge the custom tag over it, load.
+    crate::data_cmd::merged(own, &Tag::Compound(custom.clone()))
 }
 
 /// `Spawner.getSpawnEntityDisplayName` (`SpawnData.entity.id` of the item's
@@ -598,7 +604,7 @@ mod tests {
     }
 
     #[test]
-    fn a_placed_entity_takes_the_items_custom_data_and_matching_entity_data() {
+    fn a_placed_entity_takes_custom_data_only_when_it_names_its_type() {
         let item = |components: &str| {
             let components = snbt(components);
             let (damage, extra) = crate::item_data::decode_components(Some(&components));
@@ -609,20 +615,29 @@ mod tests {
             }
         };
         let own = snbt("{CustomName:\"Named\",ShowArms:0b}");
-        let stack = item(
-            "{\"minecraft:custom_data\":{k:1b},\"minecraft:entity_data\":{id:\"minecraft:armor_stand\",ShowArms:1b}}",
-        );
+        // `updateCustomEntityTag`: the custom data merges over the entity's
+        // tag when its `id` names the placed type — and 1.21.4 has no `data`
+        // field for it to hide in, nor a typed `entity_data` component.
+        let stack = item("{\"minecraft:custom_data\":{id:\"minecraft:armor_stand\",ShowArms:1b}}");
         let tag = stack_configured_entity(&stack, "minecraft:armor_stand", &own);
         assert_eq!(tag.get("ShowArms"), Some(&Tag::Byte(1)));
         assert_eq!(tag.get("CustomName"), Some(&Tag::String("Named".into())));
-        assert_eq!(
-            tag.get("data").and_then(|d| d.get("k")),
-            Some(&Tag::Byte(1))
-        );
-        // Data of another type is not loaded; the custom data still is.
-        let tag = stack_configured_entity(&stack, "minecraft:item_frame", &own);
+        assert!(tag.get("data").is_none());
+        // A typed `entity_data` component is 1.21.5-only: never merged here.
+        let stack = item("{\"minecraft:entity_data\":{id:\"minecraft:armor_stand\",ShowArms:1b}}");
+        let tag = stack_configured_entity(&stack, "minecraft:armor_stand", &own);
         assert_eq!(tag.get("ShowArms"), Some(&Tag::Byte(0)));
-        assert!(tag.get("data").is_some());
+        // Data without an `id`, or naming another type, is not loaded at all.
+        let stack = item("{\"minecraft:custom_data\":{ShowArms:1b}}");
+        assert_eq!(
+            stack_configured_entity(&stack, "minecraft:armor_stand", &own),
+            own
+        );
+        let stack = item("{\"minecraft:custom_data\":{id:\"minecraft:item_frame\",ShowArms:1b}}");
+        assert_eq!(
+            stack_configured_entity(&stack, "minecraft:armor_stand", &own),
+            own
+        );
     }
 
     #[test]

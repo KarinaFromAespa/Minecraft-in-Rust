@@ -181,12 +181,21 @@ impl InteractionState {
     /// `Interaction.readAdditionalSaveData`: the dimensions, optional action records and response.
     pub fn from_tag(tag: &horizon_world::nbt::Tag) -> Self {
         let float = |key| horizon_client::save::float(tag.get(key)).unwrap_or(1.0) as f32;
+        // 1.21.4 logs a decode failure (`Util.prefix("Interaction entity")`);
+        // 1.21.5 reads the records silently.
+        let action = |key: &str| {
+            let action = PlayerAction::from_tag(tag.get(key));
+            if tag.get(key).is_some() && action.is_none() {
+                log::warn!("Interaction entity: ignoring a malformed {key} record");
+            }
+            action
+        };
         Self {
             width: float("width"),
             height: float("height"),
             response: horizon_client::entity_nbt::flag(tag, "response"),
-            attack: PlayerAction::from_tag(tag.get("attack")),
-            interaction: PlayerAction::from_tag(tag.get("interaction")),
+            attack: action("attack"),
+            interaction: action("interaction"),
         }
     }
     /// `Interaction.addAdditionalSaveData`: the settings, and each action when set.

@@ -2186,6 +2186,16 @@ impl Game<'_> {
             self.pack.names.display_item(&stack.item)
         }
     }
+    /// Whether a stack's `minecraft:custom_data` is absent or an empty compound
+    /// (`CustomData.EMPTY` in 1.21.4's `HangingEntityItem.appendHoverText`).
+    fn custom_data_empty(stack: &ItemStack) -> bool {
+        match stack.data().and_then(|d| d.other("minecraft:custom_data")) {
+            None => true,
+            Some(horizon_world::nbt::Tag::Compound(map)) => map.is_empty(),
+            Some(_) => false,
+        }
+    }
+
     /// `ItemStack.getTooltipLines`. A `nested` stack is a crossbow's
     /// projectile: `ChargedProjectiles.addProjectileTooltip` takes its details
     /// without the name, the player and the advanced flag. `creative` is
@@ -2222,7 +2232,8 @@ impl Game<'_> {
             push(&mut lines, text, gray);
         }
         // HangingEntityItem.appendHoverText: a painting's variant, its title,
-        // author and size, or in a creative tab "Random variant".
+        // author and size, or "Random variant" — in a creative tab, or when
+        // the item's `custom_data` names no variant that decodes.
         if &*stack.item == "minecraft:painting" && display.shows("minecraft:painting/variant") {
             use horizon_client::text::Text;
             if let Some(v) = self.painting_variants.of_stack(stack) {
@@ -2232,12 +2243,7 @@ impl Game<'_> {
                 }
                 let size = [v.width, v.height].map(|n| Text::literal(n.to_string()));
                 lines.push((Text::translate("painting.dimensions", &size), u32::MAX));
-            } else if creative
-                && stack
-                    .data()
-                    .and_then(|d| d.other("minecraft:painting/variant"))
-                    .is_none()
-            {
+            } else if creative || !Self::custom_data_empty(stack) {
                 let random = Text::translate("painting.random", &[]);
                 lines.push((random.with_color(horizon_client::text::GRAY), u32::MAX));
             }

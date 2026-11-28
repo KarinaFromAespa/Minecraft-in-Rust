@@ -182,12 +182,15 @@ impl Game<'_> {
             fixed: false,
             invisible: false,
             check_interval: 0,
-            // `applyComponentsFromItemStack` sets `CUSTOM_NAME`.
-            custom_name: stack.data().and_then(|d| d.custom_name.clone()),
+            // 1.21.4's `HangingEntityItem.useOn` never applies the stack's
+            // `CUSTOM_NAME` (that arrived with 1.21.5's `createDefaultStackConfig`);
+            // a name reaches the frame only through its `custom_data`, merged
+            // into the tag below (`updateCustomEntityTag`).
+            custom_name: None,
             random: horizon_client::random_source::entity(),
         };
-        // `EntityType.createDefaultStackConfig`: the item's `custom_data`, then its
-        // `entity_data` merged over the frame (`TypedEntityData.loadInto`), before
+        // `EntityType.updateCustomEntityTag`: the item's `custom_data` merged
+        // over the frame (when it names `minecraft:item_frame`), before
         // `survives` runs on the configured frame.
         let kind = frame.kind();
         let own = horizon_client::entity_nbt::item_frame_to_nbt(&frame, [0; 4], None);

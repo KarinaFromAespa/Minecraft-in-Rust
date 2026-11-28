@@ -72,9 +72,13 @@ impl PaintingVariants {
     pub fn get(&self, id: &str) -> Option<&Variant> {
         self.all.iter().find(|v| &*v.id == id)
     }
-    /// The variant a stack's `painting/variant` component names.
+    /// The variant a stack's `minecraft:custom_data` names: 1.21.4 has no
+    /// `painting_variant` component — the preset rides in the item's entity
+    /// data, as `HangingEntityItem.appendHoverText` reads it
+    /// (`Painting.VARIANT_MAP_CODEC` over the `ENTITY_DATA` component).
     pub fn of_stack(&self, stack: &ItemStack) -> Option<&Variant> {
-        let id = horizon_client::save::text(stack.data()?.other("minecraft:painting/variant"))?;
+        let custom = stack.data()?.other("minecraft:custom_data")?;
+        let id = horizon_client::save::text(custom.get("variant"))?;
         self.get(&horizon_world::datafix::dynamic::namespaced(&id))
     }
 }
@@ -248,19 +252,9 @@ impl Game<'_> {
             .unwrap_or(0) as usize;
         let v = &fitting[pick];
         (candidate.variant, candidate.width, candidate.height) = (v.id.clone(), v.width, v.height);
-        // EntityType.createDefaultStackConfig -> Painting.applyImplicitComponents:
-        // the stack's `painting/variant` replaces the random pick, and that
-        // painting has to survive where it goes (else the use is CONSUME).
-        if let Some(v) = self.painting_variants.of_stack(stack).cloned() {
-            (candidate.variant, candidate.width, candidate.height) = (v.id, v.width, v.height);
-            if !self.painting_survives(&candidate) {
-                self.award_stat("used", &stack.item, 1);
-                return true;
-            }
-        }
-        // `updateCustomEntityTag`: the item's `custom_data` and its `entity_data`
-        // merged over the painting, so a `variant` there replaces the pick (and
-        // has to survive, else the use is CONSUME).
+        // The stack's `custom_data` decides the variant only through the
+        // merge below (`updateCustomEntityTag` is id-checked); a `variant`
+        // without an `id` is ignored by vanilla, so there is no pre-pick here.
         let own = horizon_client::entity_nbt::painting_to_nbt(&candidate, [0; 4], None);
         let mut raw = horizon_client::block_entity_item::stack_configured_entity(
             stack,
@@ -621,6 +615,63 @@ mod tests {
         assert!(!painting_use_on_swings([0, 1, 0], true));
         assert!(!painting_use_on_swings([0, -1, 0], true));
         assert!(!painting_use_on_swings([0, 0, 1], false));
+    }
+
+    /// `of_stack` reads the preset variant from the item's `custom_data`
+    /// (1.21.4 has no `painting_variant` component): the tooltip decodes it
+    /// without the id check placement applies, so a variant with no `id`
+    /// beside it still names one here.
+    #[test]
+    fn a_preset_variant_comes_from_the_items_custom_data() {
+        let variants = PaintingVariants {
+            all: vec![Variant {
+                id: Arc::from("minecraft:kebab"),
+                asset: "kebab".into(),
+                width: 1,
+                height: 1,
+                title: None,
+                author: None,
+            }],
+            placeable: vec![Arc::from("minecraft:kebab")],
+        };
+        let stack = |components: &str| {
+            let components = horizon_world::nbt::parse_snbt(components).expect("snbt").0;
+            let (damage, extra) = crate::item_data::decode_components(Some(&components));
+            crate::items::ItemStack {
+                damage,
+                extra,
+                ..crate::items::ItemStack::new("minecraft:painting", 1)
+            }
+        };
+        assert_eq!(
+            variants
+                .of_stack(&stack(
+                    "{\"minecraft:custom_data\":{variant:\"minecraft:kebab\"}}"
+                ))
+                .map(|v| &*v.id),
+            Some("minecraft:kebab")
+        );
+        // No variant in the data, an unknown one, or the 1.21.5 component:
+        // none of them names a variant here.
+        assert!(
+            variants
+                .of_stack(&stack("{\"minecraft:custom_data\":{}}"))
+                .is_none()
+        );
+        assert!(
+            variants
+                .of_stack(&stack(
+                    "{\"minecraft:custom_data\":{variant:\"minecraft:skull\"}}"
+                ))
+                .is_none()
+        );
+        assert!(
+            variants
+                .of_stack(&stack(
+                    "{\"minecraft:painting/variant\":\"minecraft:kebab\"}"
+                ))
+                .is_none()
+        );
     }
 }
 

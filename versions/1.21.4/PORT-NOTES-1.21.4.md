@@ -6494,3 +6494,43 @@ shape for the review batches.
   `plate_check_pressed` is called from the entity-inside hook and the
   scheduled tick, matching vanilla. CopperBulb `checkAndFlip` differs
   only by the playSound signature.
+
+  Batch 86 (2026-11-28, rank 3 G1: report ids 376, 378, 382, 383). Rank 3
+  now 25/149 (13 accepted + 12 closed); total 385/548. 376 CARRY-OVER
+  (turtle): all 7 inner goal/navigation classes have identical signatures
+  1.21.4 vs 1.21.5; the two TravelGoal diffs are unobservable in 1.21.4 —
+  the null guard on travelPos cannot fire (TRAVEL_POS defaults to
+  BlockPos.ZERO and start() always sets it before tick) and stop() leaving
+  travelPos set is invisible because isStableDestination's flag test and
+  null test yield the same amphibious rule. The Rust's remote_mob_data
+  Turtle ids 18->has_egg, 19->laying are already 1.21.4-correct
+  (declaration order HOME_POS=17, HAS_EGG=18, LAYING_EGG=19, TRAVEL_POS=20,
+  GOING_HOME=21, TRAVELLING=22). 378 PORTED (frames): 1.21.4 has no
+  painting_variant component, no typed entity_data component and no entity
+  `data` field — HangingEntityItem.useOn and ArmorStandItem.useOn both run
+  updateCustomEntityTag (CustomData.loadInto), not 1.21.5's
+  createDefaultStackConfig/applyImplicitComponents. stack_configured_entity
+  now merges custom_data at top level via data_cmd::merged, only when its
+  `id` names the placed type (parseEntityType is null without an id);
+  frames.rs no longer applies CUSTOM_NAME at construction (a renamed frame
+  placed in vanilla 1.21.4 gets no name — it arrives only through the
+  merge); paintings.rs of_stack reads the variant from custom_data, the
+  pre-pick override is gone (the id-checked post-pick merge is
+  authoritative), and the tooltip's random line now shows when creative OR
+  custom_data is non-empty but undecodable — the deliberate asymmetry,
+  jar-verified: the tooltip decodes the variant with NO id check, placement
+  applies custom_data ONLY when its id matches. The renderer is carry-over
+  (all four frame models already baked; BakedModel-vs-BlockStateModel is
+  internal). Tests: the block_entity_item test rewritten to the 1.21.4 form
+  (id match merges, no-id / wrong-id / entity_data ignored, no `data` key)
+  and a new of_stack test pinning the custom_data source (the 1.21.5
+  component names nothing). 382 PORTED (interactions): one log line —
+  Interaction.readAdditionalSaveData is otherwise identical (width/height
+  any-numeric floats, response boolean, entity-data ids 8/9/10 match), but
+  1.21.4 logs a decode failure of an attack/interaction record where 1.21.5
+  reads silently; from_tag now log::warn!s on a present-but-undecodable
+  record. 383 CARRY-OVER (golems): the only two differing lines in
+  CarvedPumpkinBlock are pure renames — Entity.moveTo is snapTo in 1.21.5
+  (identical body) and Level.blockUpdated is updateNeighborsAt (the 1.21.5
+  2-arg form adds the redstone-orientation rework; ServerLevel.blockUpdated
+  is updateNeighborsAt when not debug).

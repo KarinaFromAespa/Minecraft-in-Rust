@@ -479,9 +479,9 @@ impl Game<'_> {
         let drop = self.drop_offset_from(0.5, 1.975, (pos[0], pos[1], pos[2]), true);
         stand.position.y = f64::from(pos[1]) + drop;
         stand.previous = stand.position;
-        // `EntityType.createDefaultStackConfig`: the item's `custom_data`, then its
-        // `entity_data` merged over the stand; `ArmorStandItem.useOn` then snaps it
-        // to the placement yaw with pitch 0.
+        // `EntityType.updateCustomEntityTag`: the item's `custom_data` merged
+        // over the stand (when it names `minecraft:armor_stand`);
+        // `ArmorStandItem.useOn` then snaps it to the placement yaw with pitch 0.
         let own = horizon_client::entity_nbt::armor_stand_to_nbt(&stand, [0; 4], None);
         let mut raw = horizon_client::block_entity_item::stack_configured_entity(
             stack,

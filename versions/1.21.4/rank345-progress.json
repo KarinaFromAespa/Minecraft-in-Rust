@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 85,
-  "note": "Batch 85 closed (2026-11-28): 370 ported \u2014 the frog/goat long jump stops in a bubble column too (1.21.4 asks isInWaterOrBubble, 1.21.5 narrowed it to isInWater); 371 ported \u2014 melee-hit durability: the minecraft:weapon component does not exist in 1.21.4, so weapon_wear never fired for any weapon; swords/mace/trident now get 1/hit via a weapon_damage_1214 fallback matching their postHurtEnemy overrides (axes take none, as in vanilla); trident release and ItemInHandRenderer verified carry-over; 373 ported \u2014 sheep eat short grass, not the 1.21.5 edible_for_sheep tag (absent in 1.21.4), and the water-avoiding stroll takes the land position in a bubble column; FleeSun/RestrictSun/MeleeAttackGoal verified carry-over; 375 carry-over \u2014 pressure-plate shapes are value-identical (box vs column rebuild), checkPressed unchanged. Rank 3 now 21/149 (13 accepted + 8 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
+  "batch": 86,
+  "note": "Batch 86 closed (2026-11-28): 376 carry-over \u2014 turtle goal signatures identical; the 1.21.5 TravelGoal null guard and travelPos clear are unobservable in 1.21.4 (TRAVEL_POS defaults BlockPos.ZERO, start() always sets it); remote_mob_data Turtle ids 18/19 already 1.21.4-correct. 378 ported \u2014 hanging entities now use 1.21.4's updateCustomEntityTag (custom_data merged at top level, id-checked; no `data` nesting, no entity_data, no painting_variant component): frames stop applying CUSTOM_NAME at construction, paintings read the preset variant from custom_data with no pre-pick, tooltip random line when creative or custom_data undecodable. 382 ported \u2014 Interaction logs a warning on a malformed attack/interaction record, as 1.21.4 does. 383 carry-over \u2014 golem spawn diffs are pure renames (moveTo/snapTo, blockUpdated/updateNeighborsAt). Rank 3 now 25/149 (13 accepted + 12 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -128,6 +128,26 @@
       "module": "crates/horizon-world/src/level/redstone.rs",
       "verdict": "carry-over",
       "evidence": "Carry-over (javap vs both jars): BasePressurePlateBlock's three shapes are VALUE-IDENTICAL \u2014 1.21.4 builds them with Block.box (PRESSED_AABB = box(1,0,1,15,0.5,15), AABB = box(1,0,1,15,1,15), TOUCH_AABB = AABB(0.0625,0,0.0625,0.9375,0.25,0.9375)) while 1.21.5 rebuilds the same values via Block.column (SHAPE_PRESSED = column(14,0,0.5), SHAPE = column(14,0,1), TOUCH_AABB = column(14,0,4).toAabbs().getFirst()). checkPressed's body is unchanged; the other diffs are API-only: entityInside gains the InsideBlockEffectApplier parameter in 1.21.5, onRemove is renamed affectNeighborsAfterRemoval, playSound widens Player->Entity. The Rust's plate_check_pressed (redstone.rs) is called from the entity-inside hook and the scheduled tick, matching vanilla's entityInside + tick paths. CopperBulbBlock.checkAndFlip differs only by the same playSound Player->Entity signature. No code changes."
+    },
+    "376": {
+      "module": "crates/horizon-client/src/mobs/turtle.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 86, jar-verified 2026-11-28): all 7 inner classes (TurtleGoHomeGoal, TurtleTravelGoal, TurtleLayEggGoal, TurtleGoToWaterGoal, TurtleMoveControl, TurtlePathNavigation, TurtleRandomStrollGoal) have identical signatures 1.21.4 vs 1.21.5. The two TravelGoal diffs are unobservable: 1.21.5's null guard on travelPos cannot fire in 1.21.4 (TRAVEL_POS defaults to BlockPos.ZERO and start() always sets it), and stop() clearing travelPos is invisible because isStableDestination's flag test and null test yield the same amphibious rule. Rust remote_mob_data Turtle ids 18->has_egg, 19->laying are already 1.21.4-correct (declaration order HOME_POS=17, HAS_EGG=18, LAYING_EGG=19, TRAVEL_POS=20, GOING_HOME=21, TRAVELLING=22). finalizeSpawn (setHomePos + setTravelPos ZERO) and canContinueToUse match the Rust exactly. No code changes."
+    },
+    "378": {
+      "module": "crates/horizon-client/src/game/frames.rs",
+      "verdict": "closed",
+      "evidence": "PORTED (batch 86, jar-verified 2026-11-28): 1.21.4 has no painting_variant component and no entity `data` field \u2014 placement runs EntityType.updateCustomEntityTag (CustomData.loadInto), not 1.21.5's createDefaultStackConfig/applyImplicitComponents. stack_configured_entity now merges custom_data at top level only when its `id` names the placed type (no `data` nesting, no entity_data merge); frames.rs no longer applies CUSTOM_NAME at construction (1.21.4 useOn never does \u2014 a name arrives only via the merge); paintings.rs of_stack reads the variant from custom_data, and the pre-pick override is removed so the id-checked post-pick merge is authoritative; the tooltip's random line now shows when creative OR custom_data is non-empty but undecodable (tooltip decodes with no id check, placement with one). Renderer verified carry-over (all four frame models already baked; BakedModel-vs-BlockStateModel is internal). Tests: rewritten block_entity_item test (id match/mismatch, no-id, entity_data ignored) + new of_stack test pinning the custom_data source."
+    },
+    "382": {
+      "module": "crates/horizon-client/src/game/interactions.rs",
+      "verdict": "closed",
+      "evidence": "PORTED (batch 86, jar-verified 2026-11-28): one log line. Interaction.readAdditionalSaveData/addAdditionalSaveData are otherwise identical across versions (width/height any-numeric floats, response boolean, entity-data ids 8/9/10 match RemoteInteraction::metadata) \u2014 except 1.21.4 logs a decode failure of an attack/interaction record (Util.prefix 'Interaction entity') where 1.21.5 reads silently. InteractionState::from_tag now log::warn!s on a present-but-undecodable record. No unit test for log output."
+    },
+    "383": {
+      "module": "crates/horizon-client/src/game/golems.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 86, jar-verified 2026-11-28): only 2 differing lines in the whole CarvedPumpkinBlock class, both pure renames \u2014 Entity.moveTo(DDDFF) (1.21.4) is Entity.snapTo(DDDFF) (1.21.5) with an identical body, and Level.blockUpdated(pos, block) is Level.updateNeighborsAt(pos, block) (ServerLevel.blockUpdated = updateNeighborsAt when not debug; the 1.21.5 2-arg form adds the redstone-orientation rework). Rust check_golem_spawn/create_triggered/update_pattern_blocks match (spawn at base + (0.5, 0.05, 0.5), yaw 0; trigger_summoned reach 5.0; update_neighbors_at per cell). No code changes."
     }
   }
 }
