@@ -72,11 +72,11 @@ pub fn stared_at(m: &Mob, w: &MobWorld) -> bool {
         )
 }
 /// `Enderman.teleport(x, y, z)`: never while riding something, then
-/// `LivingEntity.randomTeleport(x, y, z, true, #enderman_does_not_teleport_to)`:
-/// the first `#entities_can_teleport_to` block below the spot is the ground,
-/// and the enderman lands at the spot's own height less the blocks it went
-/// down (`checkPositionAndTeleport`), unless the ground or a block in its new
-/// box is one it does not teleport to, the box collides or holds a liquid.
+/// `EnderMan.teleport` scans down from the target block while it does not
+/// block motion — the first motion-blocking block must not hold water — and
+/// `LivingEntity.randomTeleport(x, y, z, true)` scans down from below the
+/// spot, landing on top of the first motion-blocking block, unless the new
+/// box collides or holds a liquid.
 pub fn teleport_to(
     m: &mut Mob,
     w: &MobWorld,
@@ -105,22 +105,34 @@ pub fn teleport_to(
     if !w.world.loaded(bx, bz) {
         return false;
     }
-    let refused = |name: &str| w.has_tag("minecraft:enderman_does_not_teleport_to", name);
+    // `BlockState.blocksMotion()`: legacy-solid, except cobweb and bamboo
+    // sapling — the per-state rule, as in `heightmap_blocks`.
+    let blocks_motion = |x: i32, y: i32, z: i32| {
+        let f = w.facts.get(w.world.block(x, y, z));
+        f.legacy_solid && &*f.name != "minecraft:cobweb" && &*f.name != "minecraft:bamboo_sapling"
+    };
+    // `EnderMan.teleport`: scan down from the target block while it does not
+    // block motion; the first motion-blocking block must not hold water.
+    let mut gy = y.floor() as i32;
+    while gy > w.world.bottom_y() && !blocks_motion(bx, gy, bz) {
+        gy -= 1;
+    }
+    if !blocks_motion(bx, gy, bz) || w.fluid(bx, gy, bz) == Fluid::Water {
+        return false;
+    }
+    // `LivingEntity.randomTeleport`: scan down from below the target, landing
+    // on top of the first motion-blocking block.
     let mut by = y.floor() as i32;
     let mut ny = y;
-    let ground = loop {
+    loop {
         if by <= w.world.bottom_y() {
             return false;
         }
         by -= 1;
-        let name = w.block_name(bx, by, bz);
-        if w.has_tag("minecraft:entities_can_teleport_to", name) {
-            break name;
+        if blocks_motion(bx, by, bz) {
+            break;
         }
         ny -= 1.0;
-    };
-    if refused(ground) {
-        return false;
     }
     let half = f64::from(m.width()) / 2.0;
     let b = Aabb::new(
@@ -136,16 +148,11 @@ pub fn teleport_to(
     for cx in lo.x.floor() as i32..=hi.x.floor() as i32 {
         for cy in lo.y.floor() as i32..=hi.y.floor() as i32 {
             for cz in lo.z.floor() as i32..=hi.z.floor() as i32 {
-                if w.fluid(cx, cy, cz) != Fluid::None || refused(w.block_name(cx, cy, cz)) {
+                if w.fluid(cx, cy, cz) != Fluid::None {
                     return false;
                 }
             }
         }
-    }
-    // Enderman.canRandomlyTeleportTo: not onto ground that holds water
-    // (a waterlogged slab, leaves or roots).
-    if w.fluid(bx, by, bz) == Fluid::Water {
-        return false;
     }
     let old = m.position;
     let old_block = [

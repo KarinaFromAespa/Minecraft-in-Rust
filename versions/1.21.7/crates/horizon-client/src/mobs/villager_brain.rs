@@ -3545,7 +3545,7 @@ fn farmland_around(m: &Mob, w: &MobWorld) -> Vec<[i32; 3]> {
 fn farmland(w: &MobWorld, p: [i32; 3]) -> bool {
     w.facts
         .get(w.world.block(p[0], p[1], p[2]))
-        .has_class("FarmlandBlock")
+        .has_class("FarmBlock")
 }
 /// `HarvestFarmland.validPos`: a ripe CropBlock or air above farmland.
 fn farmland_valid(w: &MobWorld, p: [i32; 3]) -> bool {

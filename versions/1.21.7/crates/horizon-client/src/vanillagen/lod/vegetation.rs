@@ -58,12 +58,52 @@ fn mean(v: &Value) -> f64 {
     }
     (v["min_inclusive"].as_f64().unwrap_or(0.) + v["max_inclusive"].as_f64().unwrap_or(0.)) * 0.5
 }
+/// A block state from vanilla's state object (`{"Name": ..., "Properties":
+/// {...}}`), honouring its properties where the registry holds that exact
+/// state, else the block's default state.
+fn state(v: &Value, registry: &BlockRegistry) -> Option<BlockStateId> {
+    let name = v["Name"].as_str().or_else(|| v["id"].as_str())?;
+    let default = registry.default_state(name)?;
+    let Some(properties) = v["Properties"].as_object() else {
+        return Some(default);
+    };
+    let mut resolved = registry.state(default)?.clone();
+    for (key, value) in properties {
+        if let Some(value) = value.as_str() {
+            resolved.properties.insert(key.clone(), value.to_owned());
+        }
+    }
+    Some(registry.id(&resolved).unwrap_or(default))
+}
+/// Resolve a block-state provider to one representative state. Vanilla tree
+/// configs carry providers as objects, not bare names: a
+/// `simple_state_provider` wraps its `state`, and a `weighted_state_provider`
+/// wraps `entries` of `{"data": <state>, "weight": n}` — the heaviest entry
+/// stands in for LOD, where one state per tree is drawn. Bare names and bare
+/// state objects still resolve as before.
 fn block(v: &Value, registry: &BlockRegistry) -> Option<BlockStateId> {
-    let name = v
-        .as_str()
-        .or_else(|| v["id"].as_str())
-        .or_else(|| v["Name"].as_str())?;
-    registry.default_state(name)
+    if let Some(name) = v.as_str().or_else(|| v["id"].as_str()) {
+        return registry.default_state(name);
+    }
+    if v.get("Name").is_some() {
+        return state(v, registry);
+    }
+    match v["type"].as_str().unwrap_or("") {
+        "minecraft:simple_state_provider" => state(&v["state"], registry),
+        "minecraft:weighted_state_provider" => v["entries"]
+            .as_array()
+            .and_then(|entries| {
+                entries.iter().max_by(|a, b| {
+                    a["weight"]
+                        .as_f64()
+                        .unwrap_or(0.)
+                        .partial_cmp(&b["weight"].as_f64().unwrap_or(0.))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+            })
+            .and_then(|entry| state(&entry["data"], registry)),
+        _ => None,
+    }
 }
 fn gather(
     data: &GeneratorData,

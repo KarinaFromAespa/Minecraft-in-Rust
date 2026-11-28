@@ -75,7 +75,7 @@ fn translucent_body(m: &Mob) -> bool {
 /// and the horse's markings).
 fn translucent_layer(m: &Mob, layer: &Layer) -> bool {
     layer.full_bright
-        || layer.model == "breeze#wind"
+        || layer.model == "breeze_wind#main"
         || layer.model == "slime#outer"
         || matches!(m.species(), Species::SulfurCube)
         || layer.texture.starts_with("entity/horse/horse_markings")
@@ -699,10 +699,13 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
         }
         // BreezeWindLayer and BreezeEyesLayer. The wind layer's texture
         // scrolls (`RenderTypes.breezeWind`): the offset is taken inside the
-        // sprite, so the atlas does not have to wrap.
+        // sprite, so the atlas does not have to wrap. In 1.21.7 the wind is
+        // its own layer (`breeze_wind#main`) but the eyes are not: vanilla's
+        // BreezeEyesLayer draws the head and eyes of the body's model with
+        // the eyes texture, as the spiders' and phantoms' eyes do here.
         S::Breeze => {
             v.push(Layer {
-                model: "breeze#wind".into(),
+                model: "breeze_wind#main".into(),
                 texture: "entity/breeze/breeze_wind".into(),
                 color: white,
                 full_bright: false,
@@ -710,7 +713,7 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             });
             push(
                 &mut v,
-                "breeze#eyes",
+                m.kind.model_name(),
                 "entity/breeze/breeze_eyes",
                 white,
                 true,
@@ -753,12 +756,10 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
                 } else {
                     white
                 };
-                // UndeadHorseRenderer bakes its own armour layer.
-                let layer = if matches!(s, S::ZombieHorse | S::SkeletonHorse) {
-                    "undead_horse_armor#main"
-                } else {
-                    "horse_armor#main"
-                };
+                // 1.21.7 has only the one horse-armour layer
+                // (`ModelLayers.HORSE_ARMOR`): the undead horses' own layer
+                // is 1.21.11's, and their renderer here uses this one.
+                let layer = "horse_armor#main";
                 push(&mut v, layer, tex, color, false);
             }
         }

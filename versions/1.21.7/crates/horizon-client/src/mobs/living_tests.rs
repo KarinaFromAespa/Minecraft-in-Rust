@@ -1,10 +1,11 @@
 use super::*;
 /// `AgeableMob.isBaby` is `canBeABaby() && getAge() < 0`, and `Age` alone
-/// says nothing: the six ageable classes that override `canBeABaby` to
-/// false — `Frog`, `Parrot`, `ZombieNautilus`, `CamelHusk`, `Slime` and
-/// `MagmaCube` — stay adults, and so do the `PiglinBrute` (no `isBaby` of
-/// its own), the `Creeper` (outside the ageable tree) and the `Tadpole`,
-/// whose own age runs up from -24000 without it ever being a baby.
+/// says nothing: the four ageable classes that override `canBeABaby` to
+/// false — `Frog`, `Parrot`, `Slime` and `MagmaCube` — stay adults, and so
+/// do the `PiglinBrute` (no `isBaby` of its own), the `Creeper` (outside
+/// the ageable tree) and the `Tadpole`, whose own age runs up from -24000
+/// without it ever being a baby. (1.21.7 has no `ZombieNautilus` or
+/// `CamelHusk`; both arrive in a later version.)
 ///
 /// Every one of them keeps its type's box, the plain 1.0 ± 0.2 voice and
 /// `getAgeScale`'s 1.0, where a cow with the same age takes
@@ -32,8 +33,6 @@ fn a_negative_age_is_a_baby_only_where_can_be_a_baby_allows_it() {
         "minecraft:parrot",
         "minecraft:tadpole",
         "minecraft:frog",
-        "minecraft:zombie_nautilus",
-        "minecraft:camel_husk",
         "minecraft:slime",
         "minecraft:magma_cube",
         "minecraft:piglin_brute",
@@ -228,12 +227,16 @@ fn a_mob_bounces_off_a_bouncy_block_and_not_off_stone() {
     }
 }
 
-/// `LivingEntity.travelInFluid` ends with
-/// `floatInLiquidWhileRidden(FluidTags.ENTITY_FLOATABLE)`: a mount that
-/// carries a passenger, is in `minecraft:can_float_while_ridden` and sits
-/// deeper in the water than its jump threshold gains 0.04 a tick upwards.
-/// That is what keeps a ridden horse and its rider afloat; an empty horse
-/// gets nothing and goes on sinking.
+/// 1.21.7 has no `floatInLiquidWhileRidden` and no
+/// `minecraft:can_float_while_ridden` tag: `LivingEntity.travelInFluid`
+/// never lifts a mount, ridden or not. What lifts a horse in deep water
+/// is `LivingEntity.aiStep`'s jump section — `jumping` while affected by
+/// fluids, in water deeper than the jump threshold, calls `jumpInLiquid`,
+/// and `Mob.jumpInLiquid` adds 0.04 a tick when the navigation can float,
+/// which a horse's `FloatGoal` gives it. A rider holding jump is what
+/// holds `jumping` on a ridden horse (an unridden horse rises the same
+/// way when its `FloatGoal` holds it); without jump held the horse gains
+/// nothing and goes on sinking.
 #[test]
 fn a_ridden_horse_floats_in_deep_water() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -321,9 +324,12 @@ fn a_ridden_horse_floats_in_deep_water() {
     let kind = std::sync::Arc::new(types.types["minecraft:horse"].clone());
     let mut sank = 0.0;
     let mut floated = 0.0;
-    for ridden in [false, true] {
+    for jumping in [false, true] {
         let mut m = Mob::new(1, kind.clone(), Vec3::new(8.5, 64.0, 8.5), 0.0);
-        if ridden {
+        if jumping {
+            // A rider holding jump: the rider's held key is what sets
+            // `jumping` on a ridden horse (the game tick translates it;
+            // this test drives `aiStep`'s jump section directly).
             m.rider = Some(super::super::equine::Rider {
                 strafe: 0.0,
                 forward: 0.0,
@@ -332,24 +338,26 @@ fn a_ridden_horse_floats_in_deep_water() {
                 jump: 0.0,
                 steer: false,
                 sprint: false,
-                jumping: false,
+                jumping: true,
                 client: false,
             });
+            m.ai.jumping = true;
         }
         m.fluids.in_water = true;
         m.fluids.water = 1.0;
-        m.travel(&w, Vec3::ZERO, &mut Vec::new());
-        if ridden {
+        // `handle_jumping` is the jump part of `LivingEntity.aiStep`.
+        m.handle_jumping(&w);
+        if jumping {
             floated = m.velocity.y;
         } else {
             sank = m.velocity.y;
         }
     }
-    assert!(sank < 0.0, "an empty horse sinks, got {sank}");
+    assert_eq!(sank, 0.0, "without jump held the horse gains nothing");
     let lift = floated - sank;
     assert!(
         (lift - f64::from(0.04_f32)).abs() < 1.0e-9,
-        "a ridden horse gains 0.04 a tick, got {lift}"
+        "a ridden horse holding jump gains 0.04 a tick, got {lift}"
     );
 }
 

@@ -900,16 +900,15 @@ mod tests {
         assert!(near(p[2], [lr, y, -fb + f]));
         assert!(near(p[3], [lr, y, fb + f]));
     }
-    /// `IronGolem`, `SnowGolem`, `CopperGolem` and `Fox.getLeashOffset`: the
-    /// rope hangs at a share of the eye height, and the copper golem's on the
-    /// centre instead of the default `bbWidth / 2` in front.
+    /// `IronGolem`, `SnowGolem` and `Fox.getLeashOffset`: the rope hangs at
+    /// a share of the eye height. (The copper golem's centre offset is not
+    /// covered here: it does not exist in 1.21.7 vanilla, arrived 1.21.9.)
     #[test]
     fn a_golem_or_a_fox_hangs_its_lead_where_vanilla_does() {
         let _ = crate::mobs::world::with_test_world(&[], |_, types| {
             for (kind, factor, forwards) in [
                 ("minecraft:iron_golem", 0.875, 0.4),
                 ("minecraft:snow_golem", 0.75, 0.4),
-                ("minecraft:copper_golem", 0.75, 0.0),
                 ("minecraft:fox", 0.55, 0.4),
             ] {
                 let m = Mob::new(
@@ -966,6 +965,7 @@ mod tests {
     /// aggravated nautilus, one holding an `ANGRY_AT` or an `ATTACK_TARGET`
     /// memory, cannot be put on a lead.
     #[test]
+    #[ignore = "nautilus does not exist in 1.21.7 vanilla (arrived 1.21.11)"]
     fn an_aggravated_nautilus_cannot_be_leashed() {
         let ran = crate::mobs::world::with_test_world(&[], |_, types| {
             let new = |kind: &str| {
@@ -1121,6 +1121,7 @@ mod tests {
     /// half of `getBbHeight`, on the cube's centre rather than the default
     /// `bbWidth / 2` in front.
     #[test]
+    #[ignore = "sulfur cube does not exist in 1.21.7 vanilla (arrived 26.2/26.3)"]
     fn a_sulfur_cube_is_leashed_by_its_block_and_hangs_at_its_middle() {
         // `with_test_world` answers false when the prepared data is absent, and
         // the edits are inside the closure, so a skip needs no early return.

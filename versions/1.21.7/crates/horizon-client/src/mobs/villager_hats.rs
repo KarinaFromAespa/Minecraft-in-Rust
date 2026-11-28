@@ -67,7 +67,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "requires prepared 26.3 models and textures in HORIZON_TEST_RESOURCES"]
+    #[ignore = "no *_no_hat model layers in 1.21.7 vanilla (arrived after 1.21.7; present in 1.21.11)"]
     fn metadata_head_visibility_matches_exported_no_hat_models() {
         use crate::mobs::{load_model, render::draw};
         let root = std::env::var_os("HORIZON_TEST_RESOURCES").expect("HORIZON_TEST_RESOURCES");

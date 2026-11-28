@@ -85,7 +85,7 @@ impl CemModels {
         // the layer's own file in name order, then the files its names fall back to, nearest
         // first. Two names of one layer (`llama_decor` and `trader_llama_decor` are both
         // `llama#decor`, `skeleton_horse_armor` and `zombie_horse_armor` both
-        // `undead_horse_armor#main`) give it the first's, and the second's if the first is
+        // `horse_armor#main`) give it the first's, and the second's if the first is
         // broken; within one name, EMF's file before OptiFine's.
         let mut plan: HashMap<String, Vec<(usize, &str)>> = HashMap::new();
         for name in &names {
@@ -325,14 +325,20 @@ const LAYERS: &[(&str, &str)] = &[
     ("stray_outer", "stray#outer"),
     ("bogged_outer", "bogged#outer"),
     ("wither_armor", "wither#armor"),
-    ("breeze_wind", "breeze#wind"),
+    ("breeze_wind", "breeze_wind#main"),
     // Horizon draws both llamas' decor on one layer, and both undead horses' armour.
     ("llama_decor", "llama#decor"),
     ("trader_llama_decor", "llama#decor"),
     ("cat_collar", "cat#collar"),
     ("pig_saddle", "pig#saddle"),
     ("strider_saddle", "strider#saddle"),
-    ("nautilus_saddle", "nautilus#saddle"),
+    ("horse_saddle", "horse#saddle"),
+    ("donkey_saddle", "donkey#saddle"),
+    ("mule_saddle", "mule#saddle"),
+    ("camel_saddle", "camel#saddle"),
+    ("skeleton_horse_saddle", "skeleton_horse#saddle"),
+    ("zombie_horse_saddle", "zombie_horse#saddle"),
+    ("sheep_wool_undercoat", "sheep#wool_undercoat"),
     ("tropical_fish_a", "tropical_fish_small#main"),
     ("tropical_fish_b", "tropical_fish_large#main"),
     ("tropical_fish_pattern_a", "tropical_fish_small#pattern"),
@@ -340,8 +346,30 @@ const LAYERS: &[(&str, &str)] = &[
     ("puffer_fish_big", "pufferfish_big#main"),
     ("puffer_fish_medium", "pufferfish_medium#main"),
     ("puffer_fish_small", "pufferfish_small#main"),
-    ("skeleton_horse_armor", "undead_horse_armor#main"),
-    ("zombie_horse_armor", "undead_horse_armor#main"),
+    ("skeleton_horse_armor", "horse_armor#main"),
+    ("zombie_horse_armor", "horse_armor#main"),
+    // Entity Model Features' per-entity armour models (`zombie_inner_armor.jem`,
+    // `zombie_outer_armor.jem`; OptiFine's own model list names no armour
+    // models). The generic `inner_armor.jem` / `outer_armor.jem` fallbacks
+    // have no layer of their own, so they map nowhere here.
+    ("zombie_inner_armor", "zombie#inner_armor"),
+    ("zombie_outer_armor", "zombie#outer_armor"),
+    ("husk_inner_armor", "husk#inner_armor"),
+    ("husk_outer_armor", "husk#outer_armor"),
+    ("drowned_inner_armor", "drowned#inner_armor"),
+    ("drowned_outer_armor", "drowned#outer_armor"),
+    ("piglin_inner_armor", "piglin#inner_armor"),
+    ("piglin_outer_armor", "piglin#outer_armor"),
+    (
+        "zombified_piglin_inner_armor",
+        "zombified_piglin#inner_armor",
+    ),
+    (
+        "zombified_piglin_outer_armor",
+        "zombified_piglin#outer_armor",
+    ),
+    ("zombie_villager_inner_armor", "zombie_villager#inner_armor"),
+    ("zombie_villager_outer_armor", "zombie_villager#outer_armor"),
 ];
 
 /// The model layer a CEM model name reshapes.
@@ -1257,6 +1285,11 @@ mod tests {
             .collect();
         let vanilla = vanilla_layers(&types);
         let mut missing = Vec::new();
+        // `player` and `player_slim` are never a `MobType`'s layers in 1.21.7:
+        // the player model is only reachable through the mannequin, and the
+        // mannequin arrived in 1.21.9. Vanilla has both layers, so check them
+        // against the model document directly.
+        let document = super::super::EntityModelDocument::load(Path::new(&root)).unwrap();
         for (name, key) in LAYERS {
             if !vanilla.contains_key(key) {
                 missing.push(format!("{name}: no layer {key}"));
@@ -1264,7 +1297,12 @@ mod tests {
         }
         for name in FALLBACKS.iter().flat_map(|(name, takes)| [*name, *takes]) {
             let key = layer_key(name);
-            if !vanilla.contains_key(key.as_str()) {
+            let found = if matches!(name, "player" | "player_slim") {
+                document.model(&format!("minecraft:{key}")).is_some()
+            } else {
+                vanilla.contains_key(key.as_str())
+            };
+            if !found {
                 missing.push(format!("{name}: no layer {key}"));
             }
         }

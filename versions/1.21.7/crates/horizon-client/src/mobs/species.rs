@@ -1461,8 +1461,9 @@ impl Def {
             Species::Nautilus => &["nautilus_baby", "nautilus_armor"],
             Species::ZombieNautilus => &["zombie_nautilus_coral", "nautilus_armor", "nautilus"],
             Species::SulfurCube => &["sulfur_cube_small"],
-            Species::ZombieHorse => &["zombie_horse_baby", "undead_horse_armor"],
-            Species::SkeletonHorse => &["skeleton_horse_baby", "undead_horse_armor"],
+            Species::Breeze => &["breeze_wind"],
+            Species::ZombieHorse => &["zombie_horse_baby", "horse_armor"],
+            Species::SkeletonHorse => &["skeleton_horse_baby", "horse_armor"],
             _ => &[],
         };
         v.extend_from_slice(extra);

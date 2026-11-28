@@ -1844,7 +1844,8 @@ mod tests {
         let items = Items::load(&root, assets.registry, &facts, &PackOverlay::NONE).unwrap();
         let data = StationData::load(&root, &items, &PackOverlay::NONE);
         let e = &data.enchantments;
-        assert_eq!(e.list.len(), 43);
+        // 1.21.7 has 42 enchantments (`lunge` is not in this version's data).
+        assert_eq!(e.list.len(), 42);
         assert_eq!(
             &*e.tag("minecraft:in_enchanting_table")[0],
             "minecraft:protection"

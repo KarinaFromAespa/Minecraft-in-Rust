@@ -6981,6 +6981,7 @@ mod sheep_nbt_tests {
     /// `Mannequin.addAdditionalSaveData` and `readAdditionalSaveData`: `immovable`, and the
     /// description (the default is not written, `hide_description` hides it, a component stays).
     #[test]
+    #[ignore = "mannequin does not exist in 1.21.7 vanilla (arrived 1.21.9)"]
     fn a_mannequin_keeps_its_immovable_flag_and_description() {
         use crate::mobs::MannequinDescription as D;
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -7119,20 +7120,14 @@ mod sheep_nbt_tests {
             text(tag.get("variant")).as_deref(),
             Some("minecraft:temperate")
         );
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:classic")
-        );
-        // Spawned in a warm biome with the mini sounds.
-        (m.extra.variant, m.extra.sound_variant) = (1, Some(2));
+        // Spawned in a warm biome. (No sound-variant leg: pigs have no
+        // sound variants in 1.21.7 vanilla; the pig, cow, chicken and cat
+        // sound-variant registries arrived in 26.1.)
+        m.extra.variant = 1;
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:warm"));
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:mini")
-        );
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, Some(2)));
+        assert_eq!(back.extra.variant, 1);
         let mut hen = Mob::new(
             3,
             types["minecraft:chicken"].clone(),
@@ -7145,21 +7140,15 @@ mod sheep_nbt_tests {
         let back = mob_from_nbt(&tag, &types, 4, None).unwrap();
         assert_eq!((back.extra.variant, back.extra.egg_time), (2, 7795));
         // The sound variants are indices into the registries finalizeSpawn draws from.
+        // 1.21.7 has only the wolf sound-variant registry; the pig, cow,
+        // chicken and cat sets arrived in 26.1.
         use crate::mobs::{Species, finalize};
         let registries = finalize::SpawnRegistries::load(&root);
-        for (species, registry) in [
-            (Species::Pig, &registries.pig_sound),
-            (Species::Cow, &registries.cow_sound),
-            (Species::Chicken, &registries.chicken_sound),
-            (Species::Cat, &registries.cat_sound),
-            (Species::Wolf, &registries.wolf_sound),
-        ] {
-            assert_eq!(
-                finalize::sound_variants(species),
-                registry.names,
-                "{species:?}"
-            );
-        }
+        assert_eq!(
+            finalize::sound_variants(Species::Wolf),
+            registries.wolf_sound.names,
+            "wolf"
+        );
     }
 
     #[test]
@@ -7617,16 +7606,7 @@ mod item_component_tests {
         let mut sheep = spawn("minecraft:sheep", 2);
         apply_item_components(&mut sheep, &egg);
         assert_eq!(sheep.extra.color, 5, "lime, not the white it started as");
-        // ZombieNautilus.applyImplicitComponents: the egg carries the coral
-        // variant over the temperate one the biome picked.
-        let mut egg = crate::items::ItemStack::new("minecraft:zombie_nautilus_spawn_egg", 1);
-        egg.data_mut().set_other(
-            "minecraft:zombie_nautilus/variant",
-            Some(string("minecraft:warm")),
-        );
-        let mut nautilus = spawn("minecraft:zombie_nautilus", 4);
-        apply_item_components(&mut nautilus, &egg);
-        assert_eq!(nautilus.extra.variant, 1, "minecraft:warm, not temperate");
+        // No zombie_nautilus leg: it arrived in 1.21.11.
     }
 
     /// `Fox.applyImplicitComponent` and `Frog.applyImplicitComponent`: the
