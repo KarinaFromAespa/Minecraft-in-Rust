@@ -5766,6 +5766,7 @@ mod air_tests {
 
     /// A copper golem is in `#can_breathe_under_water`: its air stays full.
     #[test]
+    #[ignore = "copper golem does not exist in 1.21.7 vanilla (arrived 1.21.9)"]
     fn a_copper_golem_breathes_under_water() {
         let Some(air) = air_after("minecraft:copper_golem", 300, 10) else {
             return;
@@ -6092,6 +6093,7 @@ mod nautilus_noai_air_tests {
     /// `Nautilus.baseTick`: NoAI skips only handleAirSupply; super.baseTick
     /// still refills a breathing mob by four, capped at300.
     #[test]
+    #[ignore = "nautilus does not exist in 1.21.7 vanilla (arrived 1.21.11)"]
     fn noai_nautilus_keeps_superclass_refill_in_both_media() {
         for water in [false, true] {
             check(water, true, 300, [300, 300]);
@@ -6102,6 +6104,7 @@ mod nautilus_noai_air_tests {
     /// With AI, handleAirSupply still uses the pre-super air on land and
     /// writes300 in water. The NoAI exception must not alter that policy.
     #[test]
+    #[ignore = "nautilus does not exist in 1.21.7 vanilla (arrived 1.21.11)"]
     fn normal_nautilus_keeps_its_custom_handler() {
         check(false, false, 300, [299, 298]);
         check(false, false, 100, [99, 98]);
