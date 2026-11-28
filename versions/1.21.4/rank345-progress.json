@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 106,
-  "note": "Batch 106 (2026-11-28, rank 3 G4: report ids 490, 491, 492, 494, 496, 498, 499, 500): eight carry-overs, no code changes; G4 long-tail verification sweep continues. Note: the 1.21.5 jars dir has no server-named jar \u2014 server classes diff against the 1.21.5 client jar, which holds them too.",
+  "batch": 107,
+  "note": "Batch 107 (2026-11-28, rank 3 G4: report ids 501, 503, 504, 507): four carry-overs, no code changes. G4 long-tail verification sweep COMPLETE (52/52, batches 101-107).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -628,6 +628,26 @@
       "module": "crates/horizon-port-pack/src/upgrade/settings.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 106, jar-verified 2026-11-28): OverworldBiomeBuilder 1m \u2014 two entries in the constructor's biome tables change: PLATEAU_BIOMES[2][4] goes DARK_FOREST -> PALE_GARDEN, and PLATEAU_BIOMES_VARIANT[2][4] goes PALE_GARDEN -> null (no variant, so the plateau cell falls back to the base table, now pale garden). This is a real 1.21.5 worldgen table edit, but it does not apply to the 1.21.4 port: the Rust carries no hardcoded copy of these tables \u2014 the multi-noise preset tables come from per-version prepared data (presets.json, generator.rs:355 'Multi-noise tables come from presets.json', read via read_optional_bundle), which is generated from the 1.21.4 jar's own OverworldBiomeBuilder. The 1.21.4 values (dark forest base / pale garden variant at [2][4]) flow through prepare; nothing in the Rust needs changing. (The report's upgrade/settings.rs module mapping is heuristic.)"
+    },
+    "501": {
+      "module": "crates/horizon-protocol/src/connection.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 107, jar-verified 2026-11-28): PacketDecoder 1m \u2014 1.21.5 catches SkipPacketException around the stream-codec decode: it skips the buffer's remaining readable bytes and rethrows. In 1.21.4 SkipPacketException is a class extending EncoderException and decode has no such catch. In 1.21.5 it is an empty marker interface implemented by SkipPacketDecoderException, thrown when the codec cannot decode a packet (unknown id in the current protocol). The Rust's decoder is frame-based (recv reads one length-prefixed frame and returns id + payload); an undecodable frame's bytes are consumed as one frame by construction, and empty compressed frames are skipped with the connection staying up (test-pinned in connection.rs). No Rust counterpart to the Netty catch exists, and 1.21.4 has no drain to replicate."
+    },
+    "503": {
+      "module": "crates/horizon-world/src/level/place.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 107, jar-verified 2026-11-28): ChorusPlantBlock 1m \u2014 the PipeBlock constructor argument changes 0.3125F -> 10.0F, but the geometry is identical: 1.21.4's makeShapes(radius) builds the node as box((0.5-radius)*16, ..., (0.5+radius)*16) with radius 0.3125, i.e. box(3,3,3,13,13,13) with 10-wide arms; 1.21.5's makeShapes builds Block.cube(10.0) (the same 3..13 node) plus a 10-wide arm via Block.boxZ, and the parameter is now the arm width in sixteenths instead of the half-width in block units. The Rust takes block shapes from prepared block data anyway (the report's place.rs module mapping is heuristic)."
+    },
+    "504": {
+      "module": "widely named: client/gui/screens/options",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 107, jar-verified 2026-11-28): VideoSettingsScreen 1m \u2014 1.21.5 ADDS public updateFullscreenButton(boolean), which finds the fullscreen option in the options list and sets its CycleButton value (called when fullscreen changes outside the screen). 1.21.4 has no such method. The Rust already covers the case: observe_fullscreen (options.rs:637) adopts a window-system fullscreen change into the option (Minecraft.fullscreenStateChanged), and apply_fullscreen tracks whether the video screen is open so applying settings never undoes it. No new hook is needed for 1.21.4."
+    },
+    "507": {
+      "module": "widely named: recipebook",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 107, jar-verified 2026-11-28): ServerPlaceRecipe 1m \u2014 the inventory scan changes from reading the public Inventory.items field to calling Inventory.getNonEquipmentItems(), which in 1.21.5 returns exactly that same items field (now private). Same 36-slot main inventory in both versions; armour and offhand were separate fields in 1.21.4 and are still excluded. The Rust's recipe book scans self.inventory (game.rs:2175, the main inventory) for placement \u2014 the same list."
     }
   }
 }

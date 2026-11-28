@@ -7146,3 +7146,23 @@ from the 1.21.4 jar's own builder. (Trap noted: the 1.21.5 jars dir has
 no server-named jar -- server classes must be diffed against the
 1.21.5 client jar, which holds them too.) Rank 3 after batch 106: 13
 accepted + 121 closed = 134/149; total 481/548.
+
+Batch 107 (2026-11-28, rank 3 G4: report ids 501, 503, 504, 507): four
+carry-overs, no code changes. G4 COMPLETE (52/52, batches 101-107). 501
+(connection.rs): PacketDecoder gains a SkipPacketException catch in
+1.21.5 that drains the buffer before rethrowing; SkipPacketException
+went from an EncoderException subclass to a marker interface
+implemented by SkipPacketDecoderException. The Rust's decoder is
+frame-based, so a bad packet's bytes are consumed as one frame by
+construction, and empty frames are already skipped with the connection
+staying up. 503 (place.rs): ChorusPlantBlock passes 10.0F instead of
+0.3125F to PipeBlock, but the geometry is identical -- 1.21.4's radius
+form and 1.21.5's width-in-sixteenths form both build the 3..13 node
+with 10-wide arms; shapes come from prepared data. 504 (options):
+VideoSettingsScreen gains updateFullscreenButton(boolean) in 1.21.5;
+the Rust already adopts window-system fullscreen changes into the
+option via observe_fullscreen. 507 (recipebook): ServerPlaceRecipe
+reads Inventory.items through the new getNonEquipmentItems() getter,
+which returns the same 36-slot list; the Rust scans the same main
+inventory. Rank 3 after batch 107: 13 accepted + 125 closed = 138/149;
+total 485/548. G5 (render internals, batches 108-112) is next.
