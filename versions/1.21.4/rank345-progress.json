@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 99,
-  "note": "Batch 99 (2026-11-28, rank 3 G3: report ids 454, 455, 475, 476): all four CARRY-OVER -- the same 1.21.5 NBT accessor modernization as batches 97-98 (getBoolean/getInt -> getBooleanOr/getIntOr, putString/valueOf -> store/read(LEGACY_CODEC)) with identical bytes and values; the Rust already reads/writes the 1.21.4 forms (saved_templates.rs, simple.rs). No code changes.",
+  "batch": 100,
+  "note": "Batch 100 (2026-11-28, rank 3 G3: report id 477): CARRY-OVER -- the same 1.21.5 NBT accessor modernization as batches 97-99 (getBoolean -> getBooleanOr(name, false)) with identical values; the Rust generates temple pieces and never deserializes these flags from NBT. No code changes. G3 complete (13/13).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -383,6 +383,11 @@
       "module": "crates/horizon-world/src/worldgen/structure/nether_fossil.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 99, jar-verified 2026-11-28): NetherFossilPieces$NetherFossilPiece -- addAdditionalSaveData writes Rot via putString(name) vs store(name, LEGACY_CODEC); lambda$new$0 reads Rotation via valueOf(getString) vs read(name, LEGACY_CODEC).orElseThrow() (same values). The Rust already reads Rot by saved name (saved_templates.rs \"nefos\" handler). No code change."
+    },
+    "477": {
+      "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 100, jar-verified 2026-11-28): DesertPyramidPiece + JungleTemplePiece -- both NBT constructors read their placed flags via getBoolean in 1.21.4, via getBooleanOr(name, false) in 1.21.5 (old getBoolean returns false for a missing key; identical): DesertPyramidPiece hasPlacedChest0..3 into the hasPlacedChest[4] array; JungleTemplePiece placedMainChest, placedHiddenChest, placedTrap1, placedTrap2. The Rust generates temple pieces (placed flags start [false; 4], temple.rs:25,445-448) and saves them under the 1.21.4 key names as Byte (:87-89, :465-473), but never deserializes them from NBT -- the load-form diff has no Rust code. No code change."
     }
   }
 }

@@ -6963,3 +6963,13 @@ shape for the review batches.
   "OW") and Rot by saved name. 476 (nether_fossil.rs):
   NetherFossilPiece Rot the same putString/store + valueOf/read pair;
   the Rust reads Rot by saved name ("nefos" handler).
+  Batch 100 (2026-11-28, rank 3 G3: report id 477). Rank 3 now 73/149
+  (13 accepted + 60 closed); total 433/548. CARRY-OVER, no code change
+  -- the same 1.21.5 NBT accessor modernization as batches 97-99.
+  DesertPyramidPiece reads hasPlacedChest0..3 and JungleTemplePiece
+  reads placedMainChest, placedHiddenChest, placedTrap1, placedTrap2
+  via getBoolean vs getBooleanOr(name, false) (identical defaults).
+  The Rust generates temple pieces (placed flags start [false; 4])
+  and saves them under the 1.21.4 key names as Byte, but never
+  deserializes them from NBT, so the load-form diff has no Rust code.
+  G3 structure worldgen complete (13/13).
