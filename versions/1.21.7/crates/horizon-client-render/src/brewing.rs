@@ -1,6 +1,7 @@
 //! Potions and the brewing stand: the `Potions` / `MobEffects` registries (code
-//! in vanilla, ported as tables), data-driven `minecraft:brewing` recipes from
-//! `data/minecraft/recipe/brewing`, potion colours and tooltips, and
+//! in vanilla, ported as tables), 1.21.7's hardcoded `PotionBrewing` mixes
+//! (1.21.7 has no `minecraft:brewing` recipe files — `BrewingRecipe` is a
+//! 26.3-only class), potion colours and tooltips, and
 //! `BrewingStandBlockEntity.serverTick`.
 pub use crate::chunk::block_entity::BrewingStand;
 use crate::{
@@ -148,36 +149,6 @@ pub struct PotionIngredient {
     pub potions: Option<HashSet<String>>,
 }
 impl PotionIngredient {
-    fn parse(v: &Value, items: &Items) -> Self {
-        let mut set = HashSet::new();
-        let add = |s: &str, set: &mut HashSet<String>| match s.strip_prefix('#') {
-            Some(tag) => set.extend(items.item_tags.get(tag).into_iter().flatten().cloned()),
-            None => {
-                set.insert(s.to_owned());
-            }
-        };
-        match &v["item"] {
-            Value::String(s) => add(s, &mut set),
-            Value::Array(a) => a
-                .iter()
-                .filter_map(Value::as_str)
-                .for_each(|s| add(s, &mut set)),
-            _ => {}
-        }
-        let potions = match &v["potion_contents"]["potions"] {
-            Value::String(s) => Some([s.clone()].into_iter().collect()),
-            Value::Array(a) => Some(
-                a.iter()
-                    .filter_map(|x| x.as_str().map(str::to_owned))
-                    .collect(),
-            ),
-            _ => None,
-        };
-        Self {
-            items: set,
-            potions,
-        }
-    }
     pub fn test(&self, stack: &ItemStack) -> bool {
         self.items.contains(&*stack.item)
             && self
@@ -186,12 +157,34 @@ impl PotionIngredient {
                 .is_none_or(|p| stack.potion().is_some_and(|x| p.contains(x)))
     }
 }
+/// A mix's result: a new potion in the input's container, or a new container
+/// holding the input's potion. Vanilla's `PotionBrewing.mix` preserves one
+/// half of the input either way; a fixed output stack cannot say that.
+#[derive(Clone, Debug)]
+pub enum BrewOutput {
+    Potion(String),
+    Container(String),
+}
 #[derive(Clone, Debug)]
 pub struct BrewingRecipe {
     pub id: String,
     pub input: PotionIngredient,
     pub reagent: PotionIngredient,
-    pub output: ItemStack,
+    pub output: BrewOutput,
+}
+impl BrewingRecipe {
+    /// `PotionBrewing.mix`'s result for this mix: a new count-1 stack.
+    /// Custom effects and other components do not carry over — vanilla
+    /// builds the result from the item and the potion alone.
+    pub fn apply(&self, input: &ItemStack) -> ItemStack {
+        match &self.output {
+            BrewOutput::Potion(potion) => ItemStack::new(&input.item, 1).with_potion(potion),
+            BrewOutput::Container(item) => match input.potion() {
+                Some(potion) => ItemStack::new(item, 1).with_potion(potion),
+                None => ItemStack::new(item, 1),
+            },
+        }
+    }
 }
 pub struct Brewing {
     pub recipes: Vec<BrewingRecipe>,
@@ -200,82 +193,369 @@ pub struct Brewing {
     /// Items accepted in the bottle slots (`PotionIngredient.isPotionInput`).
     pub inputs: HashSet<String>,
 }
-/// The files right in `recipe/brewing/`, parsed, by id: taken from the whole
-/// recipe folder's read when another table holds it (the start loads them
-/// together), else read alone. A file that doesn't parse is left out.
-fn brewing_sources(root: &Path) -> Vec<(String, Value)> {
-    let recipe = root.join("data/minecraft/recipe");
-    let (folder, prefix) = match crate::json_folder::held(&recipe) {
-        Some(folder) => (folder, "brewing/"),
-        None => match crate::json_folder::read(&recipe.join("brewing")) {
-            Ok(folder) => (folder, ""),
-            Err(_) => return Vec::new(),
-        },
-    };
-    folder
-        .files
-        .iter()
-        .filter_map(|f| {
-            let name = f.name.strip_prefix(prefix).filter(|n| !n.contains('/'))?;
-            let v = serde_json::from_slice::<Value>(f.bytes().ok()?).ok()?;
-            Some((format!("minecraft:brewing/{name}"), v))
-        })
-        .collect()
-}
+/// `PotionBrewing.addVanillaMixes` (1.21.7): the container mixes, in the order
+/// `mix` checks them — (from item, reagent item, to item).
+const CONTAINER_MIXES: &[(&str, &str, &str)] = &[
+    (
+        "minecraft:potion",
+        "minecraft:gunpowder",
+        "minecraft:splash_potion",
+    ),
+    (
+        "minecraft:splash_potion",
+        "minecraft:dragon_breath",
+        "minecraft:lingering_potion",
+    ),
+];
+/// `PotionBrewing.addVanillaMixes` (1.21.7): the potion mixes, in registration
+/// order — (from potion, reagent item, to potion). `addStartMix` contributes
+/// its water→mundane pair first, then the awkward→potion pair. All vanilla
+/// mixes are feature-flag gated and enabled by default.
+const POTION_MIXES: &[(&str, &str, &str)] = &[
+    (
+        "minecraft:water",
+        "minecraft:glowstone_dust",
+        "minecraft:thick",
+    ),
+    ("minecraft:water", "minecraft:redstone", "minecraft:mundane"),
+    (
+        "minecraft:water",
+        "minecraft:nether_wart",
+        "minecraft:awkward",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:breeze_rod",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:breeze_rod",
+        "minecraft:wind_charged",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:slime_block",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:slime_block",
+        "minecraft:oozing",
+    ),
+    ("minecraft:water", "minecraft:stone", "minecraft:mundane"),
+    ("minecraft:awkward", "minecraft:stone", "minecraft:infested"),
+    ("minecraft:water", "minecraft:cobweb", "minecraft:mundane"),
+    ("minecraft:awkward", "minecraft:cobweb", "minecraft:weaving"),
+    (
+        "minecraft:awkward",
+        "minecraft:golden_carrot",
+        "minecraft:night_vision",
+    ),
+    (
+        "minecraft:night_vision",
+        "minecraft:redstone",
+        "minecraft:long_night_vision",
+    ),
+    (
+        "minecraft:night_vision",
+        "minecraft:fermented_spider_eye",
+        "minecraft:invisibility",
+    ),
+    (
+        "minecraft:long_night_vision",
+        "minecraft:fermented_spider_eye",
+        "minecraft:long_invisibility",
+    ),
+    (
+        "minecraft:invisibility",
+        "minecraft:redstone",
+        "minecraft:long_invisibility",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:magma_cream",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:magma_cream",
+        "minecraft:fire_resistance",
+    ),
+    (
+        "minecraft:fire_resistance",
+        "minecraft:redstone",
+        "minecraft:long_fire_resistance",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:rabbit_foot",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:rabbit_foot",
+        "minecraft:leaping",
+    ),
+    (
+        "minecraft:leaping",
+        "minecraft:redstone",
+        "minecraft:long_leaping",
+    ),
+    (
+        "minecraft:leaping",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_leaping",
+    ),
+    (
+        "minecraft:leaping",
+        "minecraft:fermented_spider_eye",
+        "minecraft:slowness",
+    ),
+    (
+        "minecraft:long_leaping",
+        "minecraft:fermented_spider_eye",
+        "minecraft:long_slowness",
+    ),
+    (
+        "minecraft:slowness",
+        "minecraft:redstone",
+        "minecraft:long_slowness",
+    ),
+    (
+        "minecraft:slowness",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_slowness",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:turtle_helmet",
+        "minecraft:turtle_master",
+    ),
+    (
+        "minecraft:turtle_master",
+        "minecraft:redstone",
+        "minecraft:long_turtle_master",
+    ),
+    (
+        "minecraft:turtle_master",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_turtle_master",
+    ),
+    (
+        "minecraft:swiftness",
+        "minecraft:fermented_spider_eye",
+        "minecraft:slowness",
+    ),
+    (
+        "minecraft:long_swiftness",
+        "minecraft:fermented_spider_eye",
+        "minecraft:long_slowness",
+    ),
+    ("minecraft:water", "minecraft:sugar", "minecraft:mundane"),
+    (
+        "minecraft:awkward",
+        "minecraft:sugar",
+        "minecraft:swiftness",
+    ),
+    (
+        "minecraft:swiftness",
+        "minecraft:redstone",
+        "minecraft:long_swiftness",
+    ),
+    (
+        "minecraft:swiftness",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_swiftness",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:pufferfish",
+        "minecraft:water_breathing",
+    ),
+    (
+        "minecraft:water_breathing",
+        "minecraft:redstone",
+        "minecraft:long_water_breathing",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:glistering_melon_slice",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:glistering_melon_slice",
+        "minecraft:healing",
+    ),
+    (
+        "minecraft:healing",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_healing",
+    ),
+    (
+        "minecraft:healing",
+        "minecraft:fermented_spider_eye",
+        "minecraft:harming",
+    ),
+    (
+        "minecraft:strong_healing",
+        "minecraft:fermented_spider_eye",
+        "minecraft:strong_harming",
+    ),
+    (
+        "minecraft:harming",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_harming",
+    ),
+    (
+        "minecraft:poison",
+        "minecraft:fermented_spider_eye",
+        "minecraft:harming",
+    ),
+    (
+        "minecraft:long_poison",
+        "minecraft:fermented_spider_eye",
+        "minecraft:harming",
+    ),
+    (
+        "minecraft:strong_poison",
+        "minecraft:fermented_spider_eye",
+        "minecraft:strong_harming",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:spider_eye",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:spider_eye",
+        "minecraft:poison",
+    ),
+    (
+        "minecraft:poison",
+        "minecraft:redstone",
+        "minecraft:long_poison",
+    ),
+    (
+        "minecraft:poison",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_poison",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:ghast_tear",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:ghast_tear",
+        "minecraft:regeneration",
+    ),
+    (
+        "minecraft:regeneration",
+        "minecraft:redstone",
+        "minecraft:long_regeneration",
+    ),
+    (
+        "minecraft:regeneration",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_regeneration",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:blaze_powder",
+        "minecraft:mundane",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:blaze_powder",
+        "minecraft:strength",
+    ),
+    (
+        "minecraft:strength",
+        "minecraft:redstone",
+        "minecraft:long_strength",
+    ),
+    (
+        "minecraft:strength",
+        "minecraft:glowstone_dust",
+        "minecraft:strong_strength",
+    ),
+    (
+        "minecraft:water",
+        "minecraft:fermented_spider_eye",
+        "minecraft:weakness",
+    ),
+    (
+        "minecraft:weakness",
+        "minecraft:redstone",
+        "minecraft:long_weakness",
+    ),
+    (
+        "minecraft:awkward",
+        "minecraft:phantom_membrane",
+        "minecraft:slow_falling",
+    ),
+    (
+        "minecraft:slow_falling",
+        "minecraft:redstone",
+        "minecraft:long_slow_falling",
+    ),
+];
+/// The three potion containers `PotionBrewing` accepts (`containers`).
+const CONTAINERS: [&str; 3] = [
+    "minecraft:potion",
+    "minecraft:splash_potion",
+    "minecraft:lingering_potion",
+];
 impl Brewing {
-    pub fn load(root: &Path, items: &Items, overlay: &PackOverlay) -> Self {
-        // NeoForge's load conditions: a file whose don't hold is silently
-        // absent. Vanilla's brewing recipes carry none; a pack's can.
-        let mods: Vec<String> = {
-            let mut mods = horizon_items::content_namespaces::mod_ids(root);
-            if !mods.iter().any(|m| m == "minecraft") {
-                mods.push("minecraft".to_owned());
-            }
-            mods
-        };
-        let conditions_hold = |v: &Value| {
-            horizon_world::conditions::conditions_hold(v, &|id: &str| mods.iter().any(|m| m == id))
-        };
-        let mut sources: Vec<(String, Value)> = brewing_sources(root);
-        // The world's packs' brewing recipes over the game's own: the top
-        // pack's file for each id replaces it (`SimpleJsonResourceReloadListener`).
-        for (id, files) in overlay.kind("recipe") {
-            if !id.starts_with("minecraft:brewing/") {
-                continue;
-            }
-            let Ok(v) = serde_json::from_slice::<Value>(PackOverlay::top(files)) else {
-                continue;
-            };
-            match sources.iter_mut().find(|(n, _)| n == id) {
-                Some(slot) => slot.1 = v,
-                None => sources.push((id.to_owned(), v)),
-            }
-        }
-        // The gate answers the merged file, as the crafting loader's does:
-        // a false-conditioned pack file leaves the lower one gone too.
-        // The data's recipe filters, over the final set.
-        let filters = horizon_items::recipe_filters::RecipeFilters::load(root, overlay);
-        sources.retain_mut(|(id, v)| conditions_hold(v) && filters.apply(id, v));
-        sources.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut recipes = Vec::new();
-        for (id, v) in sources {
-            if v["type"] != "minecraft:brewing" {
-                continue;
-            }
-            let mut output = ItemStack::new(
-                v["output"]["id"].as_str().unwrap_or("minecraft:potion"),
-                v["output"]["count"].as_u64().unwrap_or(1) as u32,
-            );
-            if let Some(potion) =
-                v["output"]["components"]["minecraft:potion_contents"]["potion"].as_str()
-            {
-                output = output.with_potion(potion);
-            }
+    /// 1.21.7's brewing mixes: `PotionBrewing`'s hardcoded vanilla table.
+    /// 1.21.7 has no brewing recipe type, so no data pack can add mixes —
+    /// the resource parameters are unused and only kept so the call sites
+    /// (fixtures, stations, the remote menu) do not churn.
+    pub fn load(_root: &Path, _items: &Items, _overlay: &PackOverlay) -> Self {
+        let one = |s: &str| [s.to_owned()].into_iter().collect();
+        let mut recipes = Vec::with_capacity(CONTAINER_MIXES.len() + POTION_MIXES.len());
+        // Container mixes first: `PotionBrewing.mix` checks them before the
+        // potion mixes, and `find` takes the first match.
+        for (from, reagent, to) in CONTAINER_MIXES {
             recipes.push(BrewingRecipe {
-                id,
-                input: PotionIngredient::parse(&v["input"], items),
-                reagent: PotionIngredient::parse(&v["reagent"], items),
-                output,
+                id: format!(
+                    "minecraft:brewing/{}_{}_{}",
+                    from.trim_start_matches("minecraft:"),
+                    reagent.trim_start_matches("minecraft:"),
+                    to.trim_start_matches("minecraft:")
+                ),
+                input: PotionIngredient {
+                    items: one(from),
+                    potions: None,
+                },
+                reagent: PotionIngredient {
+                    items: one(reagent),
+                    potions: None,
+                },
+                output: BrewOutput::Container((*to).to_owned()),
+            });
+        }
+        for (from, reagent, to) in POTION_MIXES {
+            recipes.push(BrewingRecipe {
+                id: format!(
+                    "minecraft:brewing/{}_{}_{}",
+                    from.trim_start_matches("minecraft:"),
+                    reagent.trim_start_matches("minecraft:"),
+                    to.trim_start_matches("minecraft:")
+                ),
+                input: PotionIngredient {
+                    items: CONTAINERS.iter().map(|s| (*s).to_owned()).collect(),
+                    potions: Some(one(from)),
+                },
+                reagent: PotionIngredient {
+                    items: one(reagent),
+                    potions: None,
+                },
+                output: BrewOutput::Potion((*to).to_owned()),
             });
         }
         let reagents = recipes
@@ -293,10 +573,36 @@ impl Brewing {
             inputs,
         }
     }
+    /// `PotionBrewing.mix`'s match: the first mix whose input and reagent
+    /// test, container mixes first. The source must carry potion contents
+    /// — `mix` returns the source unchanged when its potion is empty, for
+    /// both mix kinds. (Vanilla's `mix` does not check the item for potion
+    /// mixes, but `hasMix` gates every brew on a container and
+    /// `canPlaceItem` only admits the three containers and the glass bottle
+    /// into the slots, so a non-container with potion contents can never
+    /// reach `mix` through gameplay; the matcher restricts potion-mix
+    /// inputs to the containers, which is exactly what is observable.)
     pub fn find(&self, input: &ItemStack, reagent: &ItemStack) -> Option<&BrewingRecipe> {
+        if input.potion().is_none() {
+            return None;
+        }
         self.recipes
             .iter()
             .find(|r| r.input.test(input) && r.reagent.test(reagent))
+    }
+    /// `PotionBrewing.hasMix`: the source must be a container, then a
+    /// container mix (no contents check) or a potion mix (contents check)
+    /// matches. Note the asymmetry with `find`: a potion with no contents
+    /// plus gunpowder IS brewable (the container mix matches), but `mix`
+    /// then returns the source unchanged — the brew runs 400 ticks and
+    /// consumes the ingredient without changing the bottle.
+    pub fn has_mix(&self, input: &ItemStack, reagent: &ItemStack) -> bool {
+        if !CONTAINERS.contains(&&*input.item) {
+            return false;
+        }
+        self.recipes
+            .iter()
+            .any(|r| r.input.test(input) && r.reagent.test(reagent))
     }
     pub fn is_reagent(&self, stack: &ItemStack) -> bool {
         self.reagents.contains(&*stack.item)
@@ -401,7 +707,7 @@ impl BrewingStand {
             if let Some(input) = &self.items[slot]
                 && let Some(r) = brewing.find(input, &ingredient)
             {
-                self.items[slot] = Some(r.output.clone());
+                self.items[slot] = Some(r.apply(input));
             }
         }
         let remainder = items
@@ -456,7 +762,7 @@ mod tests {
                     items: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
                     potions: None,
                 },
-                output: ItemStack::new("minecraft:potion", 1).with_potion("minecraft:awkward"),
+                output: BrewOutput::Potion("minecraft:awkward".to_owned()),
             }],
         };
         let mut fuel = ItemStack::new("minecraft:stone", 2);
@@ -482,6 +788,47 @@ mod tests {
         );
         assert_eq!(stand.fuel, 6);
         assert_eq!(stand.items[4].as_ref().unwrap().count, 1);
+    }
+
+    /// `PotionBrewing.addVanillaMixes`: 65 mixes (2 container, 63 potion);
+    /// a potion mix keeps the container, a container mix keeps the potion,
+    /// and a potion with no contents is brewable with gunpowder (`hasMix`)
+    /// but `mix` leaves it unchanged.
+    #[test]
+    fn vanilla_mixes_preserve_one_half() {
+        let brewing = Brewing::load(
+            std::path::Path::new(""),
+            &Items::for_tests(std::collections::HashMap::new()),
+            &PackOverlay::NONE,
+        );
+        assert_eq!(brewing.recipes.len(), 65);
+        let water = ItemStack::new("minecraft:potion", 1).with_potion("minecraft:water");
+        let wart = ItemStack::new("minecraft:nether_wart", 1);
+        let awkward = brewing.find(&water, &wart).unwrap().apply(&water);
+        assert_eq!(&*awkward.item, "minecraft:potion");
+        assert_eq!(awkward.potion(), Some("minecraft:awkward"));
+        // A splash water bottle stays a splash bottle through the mix.
+        let splash = ItemStack::new("minecraft:splash_potion", 1).with_potion("minecraft:water");
+        let awkward = brewing.find(&splash, &wart).unwrap().apply(&splash);
+        assert_eq!(&*awkward.item, "minecraft:splash_potion");
+        assert_eq!(awkward.potion(), Some("minecraft:awkward"));
+        // Gunpowder turns a potion into a splash potion of the same potion.
+        let gunpowder = ItemStack::new("minecraft:gunpowder", 1);
+        let strong = ItemStack::new("minecraft:potion", 1).with_potion("minecraft:strong_healing");
+        let out = brewing.find(&strong, &gunpowder).unwrap().apply(&strong);
+        assert_eq!(&*out.item, "minecraft:splash_potion");
+        assert_eq!(out.potion(), Some("minecraft:strong_healing"));
+        // A potion with no contents: brewable, but the mix is a no-op.
+        let empty = ItemStack::new("minecraft:potion", 1);
+        assert!(brewing.has_mix(&empty, &gunpowder));
+        assert!(brewing.find(&empty, &gunpowder).is_none());
+        assert!(!brewing.has_mix(&empty, &wart));
+        // A glass bottle is never a mix source.
+        let bottle = ItemStack::new("minecraft:glass_bottle", 1);
+        assert!(!brewing.has_mix(&bottle, &gunpowder));
+        assert!(brewing.is_bottle(&bottle));
+        assert!(brewing.is_reagent(&gunpowder));
+        assert!(!brewing.is_reagent(&ItemStack::new("minecraft:stick", 1)));
     }
 
     /// 1.21.7 has no brewing-fuel component: a stand refuels from vanilla
@@ -519,7 +866,7 @@ mod tests {
                     items: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
                     potions: None,
                 },
-                output: ItemStack::new("minecraft:potion", 1).with_potion("minecraft:awkward"),
+                output: BrewOutput::Potion("minecraft:awkward".to_owned()),
             }],
         };
         let providers = Providers::empty();
@@ -632,7 +979,7 @@ mod tests {
                 items: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
                 potions: None,
             },
-            output: ItemStack::new("minecraft:potion", 1).with_potion("minecraft:awkward"),
+            output: BrewOutput::Potion("minecraft:awkward".to_owned()),
         };
         let brewing = Brewing {
             reagents: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
@@ -710,7 +1057,7 @@ mod tests {
                     items: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
                     potions: None,
                 },
-                output: ItemStack::new("minecraft:potion", 1).with_potion("minecraft:awkward"),
+                output: BrewOutput::Potion("minecraft:awkward".to_owned()),
             }],
         };
         let providers = Providers::empty();

@@ -84,7 +84,10 @@ pub fn main() -> horizon_client::Result<()> {
             (Some(input), Some(reagent)) => brewing.find(input, reagent),
             _ => None,
         };
-        let result = found.map_or_else(|| "-".to_owned(), |r| canon_stack(Some(&r.output)));
+        let result = found.zip(input.as_ref()).map_or_else(
+            || "-".to_owned(),
+            |(r, input)| canon_stack(Some(&r.apply(input))),
+        );
         let id = found.map_or_else(|| "-".to_owned(), |r| r.id.clone());
         writeln!(
             out,
