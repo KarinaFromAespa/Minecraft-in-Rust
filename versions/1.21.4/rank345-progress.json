@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 89,
-  "note": "Batch 89 closed (2026-11-28): 401 ported \u2014 phantom anchor null guards are 1.21.5-only (1.21.4's anchorPoint is never null, BlockPos.ZERO is the no-anchor sentinel); AttackStrategy.stop now recomputes unconditionally, treating a missing anchor as the origin. 402 ported \u2014 BlockInput.place returns the set's result and loads the tag only on success (1.21.5 also loads on failure and lets a changed entity flip the result); cmd_setblock and cmd_fill now fail/count only on placed. 406 carry-over \u2014 PlaySoundEffect.apply differs only by the playSound Player->Entity widening and UnobstructedPredicate.test only by the VoxelShape.move overload (same unit cube). 407 carry-over \u2014 renderItem's z-offset/isLeftHand differences are dead on the GUI path (zOffset is always 0, not left-handed) and the hover dispatch already matches 1.21.4. Rank 3 now 37/149 (13 accepted + 24 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
+  "batch": 90,
+  "note": "Batch 90 (2026-11-28): 409 carry-over \u2014 sniffer egg tick differs only by playSound widenings and the moveTo/snapTo rename, and Block.column(14, 12, 0, 16) is exactly box(1, 0, 2, 15, 16, 14). 410 carry-over \u2014 wandering-trader tick's int->void return is unused; the Rust already returns () with matching constants (1200/24000/25/75). 413 carry-over \u2014 SolidBucketItem.emptyContents differs only by the Player->LivingEntity widening; the Rust's bucket_empty takes no user. 408 DEFERRED for a protocol-layer decision \u2014 the heightmaps NBT-vs-Map diff is real, but the adapter already bridges it and the native codec is the 26.2 internal layout; a real 1.21.4 server connects with no adapter and its chunk packets fail the game's decoder (proven by direct decode). Rank 3 now 40/149 (13 accepted + 27 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -208,6 +208,26 @@
       "module": "crates/horizon-client/src/game/inventory_slots.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 89, jar-verified 2026-11-28): both GuiGraphics methods differ only in dead or already-matched code. renderItem: 1.21.4 passes false for ItemStackRenderState.isLeftHand to updateForTopItem (1.21.5 drops the parameter) \u2014 the GUI path is not left-handed in either version; and 1.21.4 translates by 150 + (isGui3d() ? zOffset : 0) versus 1.21.5's 150 + zOffset, but the 7-arg overload is private and its only caller passes zOffset 0, so both render at 150. The Rust draws slot items through draw_item_model with no z-offset concept (draw order) \u2014 already the 1.21.4 result. renderComponentHoverEffect: 1.21.5 rewrote the dispatch as a switch over the sealed HoverEvent records, but the three branches are the same as 1.21.4's getValue checks, and the Rust's draw_chat_screen already implements the 1.21.4 form exactly (SHOW_TEXT split at max(guiWidth/2, 200); SHOW_ITEM item tooltip; SHOW_ENTITY only with advancedItemTooltips). No code change."
+    },
+    "408": {
+      "module": "crates/horizon-client/src/game/remote_chunks.rs",
+      "verdict": "deferred",
+      "evidence": "DEFERRED (batch 90, jar-verified 2026-11-28): the jar diff is real \u2014 ClientChunkCache.replaceWithPacketData takes heightmaps as a CompoundTag (NBT) in 1.21.4 and as a Map<Heightmap.Types, long[]> in 1.21.5; the bodies are otherwise identical and replaceBiomes is identical. The Rust already bridges the 769 form in the adapter: translate/v1_21_4.rs::chunk reads the NBT heightmaps and rewrites them into the map form the game's ChunkData codec reads (with the v1_21_11 step inserting the per-section fluid count), proven end-to-end by the existing test nbt_heightmaps_and_prefixed_palettes_reach_the_pinned_chunk. The native ChunkData/Section codec is the 26.2 internal layout (map heightmaps, unprefixed palettes, a fluids i16 per section), so it cannot be switched to the 769 form (NBT heightmaps, prefixed palettes, one i16 per section) without breaking the adapter's generic chunk path and the translator test \u2014 and a heightmaps-only change would fix nothing observable, since the sections would still misparse. The gap that remains is the direct path: a real 1.21.4 server connects with no adapter (older_server returns None for the pinned version; ConnReader::recv returns the packet untranslated), and the game's decoder fails on raw 769 chunk bytes \u2014 proven locally by decoding a 769-form packet with play::Clientbound::decode, which errors (NBT: NBT at byte 1: unknown tag type). DECISION NEEDED (protocol layer, also touches closed item 161's verdict that the adapter handles the prefixed palettes): either route Current-version connections through the adapter, or re-pin the native chunk codec to 769 with the adapter keeping its own 26.2-layout codecs. No code change in this batch."
+    },
+    "409": {
+      "module": "crates/horizon-client/src/game/sniffers.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 90, jar-verified 2026-11-28): all API-only. SnifferEggBlock.tick differs only by two playSound Player->Entity widenings (same sound, position, volume, pitch) and Sniffer.moveTo -> Sniffer.snapTo, a rename of the same position set; hatchBoost is identical. The Rust's sniffer_egg_tick plays crack/hatch at the position with no player involved (hatch < 2 cracks, else hatches), and hatch_sniffer spawns the snifflet at the egg position + 0.5 \u2014 already the 1.21.4 result. The SHAPE is identical too: 1.21.5 builds it as Block.column(14.0, 12.0, 0.0, 16.0), which javap shows is box(8-7, 0, 8-6, 8+7, 16, 8+6) = box(1, 0, 2, 15, 16, 14), exactly 1.21.4's Block.box(1.0, 0.0, 2.0, 15.0, 16.0, 14.0); the Rust takes block shapes from prepared resources and has no hardcoded egg shape to change. No code change."
+    },
+    "410": {
+      "module": "crates/horizon-client/src/game/wandering_trader.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 90, jar-verified 2026-11-28): WanderingTraderSpawner.tick returns int in 1.21.4 and void in 1.21.5; the bodies are otherwise byte-identical (same gamerule check, 1200-tick countdown, 24000 spawn delay, chance +25 clamped to 25..75, spawn call). The Rust's tick_wandering_trader already returns () and no caller uses a return value; its constants match the jar exactly (TICK_DELAY 1200, SPAWN_DELAY 24000, MIN_CHANCE 25, MAX_CHANCE 75) and the spawn logic (chance roll, trader + 2 llamas) matches spawn. No code change."
+    },
+    "413": {
+      "module": "crates/horizon-world/src/level/buckets.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 90, jar-verified 2026-11-28): SolidBucketItem.emptyContents differs only in its first parameter (Player in 1.21.4, LivingEntity in 1.21.5); the body is identical. The Rust's bucket_empty takes no user at all \u2014 it models only the world effects (powder-snow place with FLUID_PLACE + sound, fluid place, evaporate hiss) \u2014 so the widening changes nothing it does. No code change."
     }
   }
 }

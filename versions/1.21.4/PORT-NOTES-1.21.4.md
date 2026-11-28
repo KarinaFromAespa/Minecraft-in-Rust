@@ -6630,3 +6630,34 @@ shape for the review batches.
   renames like setValue/trySetValue and the playSound Player->Entity
   widening — re-check any IDENTICAL verdict with names kept before closing
   an item on it.
+  Batch 90 (2026-11-28, rank 3 G1: report ids 408, 409, 410, 413). Rank 3
+  now 40/149 (13 accepted + 27 closed); total 400/548. 409 CARRY-OVER
+  (sniffers): SnifferEggBlock.tick differs only by two playSound
+  Player->Entity widenings and the moveTo/snapTo rename (hatchBoost is
+  identical); the Rust's sniffer_egg_tick already plays crack/hatch at the
+  position and hatch_sniffer spawns at the egg + 0.5. The SHAPE is identical
+  too: 1.21.5's Block.column(14.0, 12.0, 0.0, 16.0) is box(1, 0, 2, 15, 16,
+  14) by javap (8-7, 0, 8-6, 8+7, 16, 8+6), exactly 1.21.4's box call, and
+  the Rust takes block shapes from prepared resources anyway. 410
+  CARRY-OVER (wandering_trader): tick's int->void return is unused; the
+  Rust already returns () with the jar's constants (1200/24000/25/75).
+  413 CARRY-OVER (buckets): SolidBucketItem.emptyContents differs only by
+  the Player->LivingEntity widening; the Rust's bucket_empty takes no user.
+  408 DEFERRED for a protocol-layer decision (not a carry-over: the jar
+  diff is real): replaceWithPacketData takes heightmaps as NBT in 1.21.4
+  and as a Map in 1.21.5, but the adapter already bridges the 769 form
+  (v1_21_4.rs::chunk NBT->map, v1_21_11 step inserting the fluid count;
+  proven by nbt_heightmaps_and_prefixed_palettes_reach_the_pinned_chunk)
+  and the native ChunkData/Section codec is the 26.2 internal layout
+  (map heightmaps, unprefixed palettes, fluids i16), so a heightmaps-only
+  NBT change would break the adapter's generic chunk path and fix nothing
+  observable. What remains is the direct path: a real 1.21.4 server
+  connects with no adapter (older_server returns None for the pinned
+  version; ConnReader::recv returns the packet untranslated) and the
+  game's decoder fails on raw 769 chunk bytes — proven by decoding a
+  769-form packet with play::Clientbound::decode (ERR "NBT: NBT at byte
+  1: unknown tag type"). The fix is either routing Current-version
+  connections through the adapter or re-pinning the native chunk codec to
+  769 with the adapter keeping its own 26.2-layout codecs; that decision
+  also touches closed item 161's verdict that the adapter handles the
+  prefixed palettes. No code change in this batch.
