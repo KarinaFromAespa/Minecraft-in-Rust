@@ -697,8 +697,11 @@ impl Game<'_> {
         };
         let found: Vec<Target> = match c.literals.last().map(String::as_str) {
             Some("owner") => match entity {
-                // OwnableEntity.getOwner → EntityReference.getLivingEntity:
-                // a marker or a display with that UUID is not an owner.
+                // OwnableEntity.getOwner in 1.21.4 is
+                // `level().getPlayerByUUID(uuid)`: a player or null.
+                // 1.21.5 resolves `EntityReference.getLivingEntity`
+                // instead, so a mob, a stand or a dragon with that UUID
+                // would answer there — here they are not an owner.
                 Target::Mob(id) => self
                     .mobs
                     .iter()
@@ -708,16 +711,7 @@ impl Game<'_> {
                     .and_then(|u| {
                         self.target_by_uuid(horizon_client::lan::playerdata::ints_uuid(u))
                     })
-                    .filter(|owner| {
-                        matches!(
-                            owner,
-                            Target::Player
-                                | Target::Guest(_)
-                                | Target::Mob(_)
-                                | Target::Stand(_)
-                                | Target::Dragon(_)
-                        )
-                    })
+                    .filter(|owner| owner_is_player(*owner))
                     .into_iter()
                     .collect(),
                 _ => Vec::new(),
@@ -1269,9 +1263,17 @@ fn is_player_in_place(
     }
 }
 
+/// Whether `owner` can be the result of `OwnableEntity.getOwner` in 1.21.4
+/// (`level().getPlayerByUUID(uuid)`): the player in place or a guest.
+/// A mob, a stand or a dragon with that UUID is not an owner there;
+/// 1.21.5's `EntityReference.getLivingEntity` would answer it.
+fn owner_is_player(owner: Target) -> bool {
+    matches!(owner, Target::Player | Target::Guest(_))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_player_in_place;
+    use super::{Target, is_player_in_place, owner_is_player};
     use horizon_client::lan::playerdata::ints_uuid;
 
     const OWNER: [i32; 4] = [0, 0, 0, 12];
@@ -1293,6 +1295,17 @@ mod tests {
         assert!(!is_player_in_place(GUEST, a, Some(OWNER)));
         // No level player at all (a dedicated server): nobody is in place without a guest.
         assert!(!is_player_in_place(OWNER, None, None));
+    }
+
+    /// In 1.21.4 `OwnableEntity.getOwner` is `level().getPlayerByUUID(uuid)`,
+    /// so only a player — in place or a guest — can be an owner.
+    #[test]
+    fn only_a_player_is_an_owner_in_1_21_4() {
+        assert!(owner_is_player(Target::Player));
+        assert!(owner_is_player(Target::Guest(1)));
+        assert!(!owner_is_player(Target::Mob(1)));
+        assert!(!owner_is_player(Target::Stand(1)));
+        assert!(!owner_is_player(Target::Dragon(1)));
     }
 }
 

@@ -6818,3 +6818,46 @@ shape for the review batches.
   batch-90 failure, "NBT: NBT at byte 1: unknown tag type", is gone).
   Also corrected two stale 1.21.8 mentions in translate.rs comments to
   the 1.21.4 pin.
+
+  Batch 96 (2026-11-28, rank 3 G2: report ids 390, 400, 412, 421). Rank 3 now
+  60/149 (13 accepted + 47 closed); total 420/548. 390 PORT (execute.rs):
+  OwnableEntity.getOwner -- 1.21.4 is getOwnerUUID() then
+  level().getPlayerByUUID(uuid), a player or null; 1.21.5 resolves
+  EntityReference.get(getOwnerReference(), level(), LivingEntity.class),
+  any living entity, and adds getRootOwner (new in 1.21.5, unused here).
+  The Rust `on owner` filter accepted Player | Guest | Mob | Stand |
+  Dragon (the 1.21.5 form); it now accepts only Player | Guest, via the
+  owner_is_player helper, pinned by
+  only_a_player_is_an_owner_in_1_21_4 (unit test). scoreboard.rs already
+  documents that 1.21.4 has no getRootOwner. 421 PORT (commands.rs):
+  ArgumentTypeInfos.bootstrap -- 1.21.4 registers 54 parsers on the wire
+  from a real server: the 1.21.5 list minus resource_selector (new in
+  1.21.5); test_argument + test_class register only in the IDE and never
+  reach the wire. The Rust ARGUMENT_TYPES was the 55-entry 1.21.5 list, so
+  every parser id after resource_key was off by one against a 1.21.4
+  server (template_mirror decoded as resource_selector); it now has the
+  54-entry 1.21.4 list with uuid at 53, matching adapter/v26_2_ids.rs (54
+  pinned) and COMMAND_ARGUMENT_TYPE_DOWN (53 -> 56). The
+  resource_selector decode arms stay as dead code (batch 93 pattern);
+  test_argument/test_class are NOT added to the table. Pinned by
+  every_argument_type_decodes and the layout_26_2 uuid test, which now
+  takes the Some arm (down(53) = 56). 400 CARRY-OVER (title.rs):
+  OptimizeWorldScreen.create -- only the getLevelSettings() call site
+  moves (constructor arg in 1.21.4, WorldData + in-constructor call in
+  1.21.5); the level-name title is identical, and onClose/removed/render/
+  tick are identical. handleInitialNarrationDelay is logic-identical;
+  only Narrator.say gains a float argument in 1.21.5. The Rust builds its
+  WorldUpgrader from the folder + dimension list and implements no
+  narration delay, so there is nothing to port. Pre-existing gap, noted
+  not fixed: the Rust never narrates the onboarding screen after the
+  40-tick delay in either version's form. 412 CARRY-OVER (toasts.rs):
+  ToastInstance.update -- 1.21.4 plays the current visibility's sound on
+  the first update and on every visibility change (no dedup); 1.21.5
+  plays no sound in update(), the sound moving to ToastManager.update
+  (at most one toast per tick) and addToast (deduped by
+  playedToastSounds). The Rust's Slide::update returns the switched-to
+  visibility on every switch and its drivers (title, advancements,
+  server_packs, tutorial) play ui.toast.in / ui.toast.out on every
+  switch -- the 1.21.4 per-instance model, with an explicit comment in
+  advancements.rs. The sites that ignore the sound are test helpers and
+  controller_notice (a controller notice, not a toast).

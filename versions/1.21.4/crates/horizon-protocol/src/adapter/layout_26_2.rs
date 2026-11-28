@@ -379,7 +379,7 @@ mod tests {
         let body = commands(ids(), &w.data).unwrap();
         // Read the 26.2-numbered body back by hand: the pin codec cannot
         // resolve 26.2's parser ids (uuid is 56 there, past the pin's
-        // 55-entry registry), and only the parser ids matter here.
+        // 54-entry registry), and only the parser ids matter here.
         let mut r = Reader::new(&body);
         assert_eq!(r.varint().unwrap(), 3);
         let mut parsers = Vec::new();

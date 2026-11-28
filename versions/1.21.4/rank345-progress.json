@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 95,
-  "note": "Item 408 (2026-11-28, own unit): re-pinned the native chunk codec to 769 per the owner decision (option b) \u2014 NBT heightmaps, one short + prefixed palettes per section, long-array light masks, prefixed biome containers; the adapter keeps its own 26.2-layout codecs (translate::chunk reads 26.2-form sections, level_chunk writes 26.2-form columns for 26.2 clients, LAN host serves 769-form). Item 161 re-verified (adapter still handles prefixed palettes). Direct-path proof: a_raw_769_chunk_packet_decodes. Rank 3 now 56/149 (13 accepted + 43 closed), rank 4 0/39, rank 5 2/2 (both accepted).",
+  "batch": 96,
+  "note": "Batch 96 (2026-11-28, rank 3 G2: report ids 390, 400, 412, 421): 390 PORT (on owner is player-only in 1.21.4), 421 PORT (argument-type registry is 54 entries, no resource_selector), 400 + 412 CARRY-OVER (no semantic diff). Rank 3 now 60/149 (13 accepted + 47 closed); total 420/548.",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -303,6 +303,26 @@
       "module": "crates/horizon-client/src/multiplayer.rs",
       "verdict": "closed",
       "evidence": "CLOSE (batch 95, jar-verified 2026-11-28): FaviconTexture.upload -- the only semantic diff is the DynamicTexture constructor: 1.21.5 passes a name supplier (lambda returning the texture location string) while 1.21.4 uses the plain (NativeImage) constructor; the rest (create-if-null else setPixels + upload, register with the texture manager, close-the-image + clear on error) is identical. The Rust port has no DynamicTexture: favicon pixels are stored raw in the Icons map (icon_pixels enforces exactly 64x64) and blitted as a HUD patch, with misc/unknown_server as the fallback (draw_server_icon) -- the observable 1.21.4 behaviour is already implemented, and the constructor's debug name has no behavioural effect. No code change. Pinned by the existing favicons_are_64_pixel_pngs_behind_the_data_url test (64x64-only, data-URL prefix, base64 with newlines)."
+    },
+    "390": {
+      "module": "crates/horizon-client/src/game/commands/execute.rs",
+      "verdict": "closed",
+      "evidence": "PORT (batch 96, jar-verified 2026-11-28): OwnableEntity.getOwner -- 1.21.4 is getOwnerUUID() then level().getPlayerByUUID(uuid) (a player or null); 1.21.5 resolves EntityReference.get(getOwnerReference(), level(), LivingEntity.class) (any living entity), and adds getRootOwner (new in 1.21.5, unused here). The Rust `on owner` filter in execute.rs accepted Player | Guest | Mob | Stand | Dragon (the 1.21.5 form); it now accepts only Player | Guest via the owner_is_player helper. Pinned by only_a_player_is_an_owner_in_1_21_4 (unit test). scoreboard.rs already documents that 1.21.4 has no getRootOwner (a pet owned by a pet answers that pet's team)."
+    },
+    "400": {
+      "module": "crates/horizon-client/src/title.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 96, jar-verified 2026-11-28): OptimizeWorldScreen.create -- the only diff is where getLevelSettings() is called: 1.21.4 passes LevelSettings to the constructor, 1.21.5 passes WorldData and the constructor calls getLevelSettings() itself; the screen title (the level name) is identical, and the other methods (onClose, removed, render, tick) are identical. AccessibilityOnboardingScreen.handleInitialNarrationDelay is logic-identical; only Narrator.say gains a float argument in 1.21.5. The Rust builds its WorldUpgrader from the folder + dimension list (no LevelSettings/WorldData) and implements no narration delay, so there is nothing to port. No code change. Pre-existing gap, noted not fixed: the Rust never narrates the onboarding screen after the 40-tick delay in either version's form."
+    },
+    "412": {
+      "module": "crates/horizon-client/src/toasts.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 96, jar-verified 2026-11-28): ToastManager$ToastInstance.update -- 1.21.4 plays the current visibility's sound on the first update and again on every visibility change (two playSound calls, no dedup); 1.21.5 plays no sound in update() -- the sound moved to ToastManager.update (lambda$update$0, at most one toast per tick) and addToast (lambda$update$1, deduped by playedToastSounds). The Rust's Slide::update returns the switched-to visibility (the sound to play) on every switch, and its drivers (title update_toast, advancements, server_packs, tutorial) play ui.toast.in / ui.toast.out on every switch -- the 1.21.4 per-instance model, with an explicit comment in advancements.rs. The sites that ignore the sound are test helpers and controller_notice (a controller notice, not a toast). No code change."
+    },
+    "421": {
+      "module": "crates/horizon-protocol/src/packets/play/commands.rs",
+      "verdict": "closed",
+      "evidence": "PORT (batch 96, jar-verified 2026-11-28): ArgumentTypeInfos.bootstrap -- 1.21.4 registers 54 parsers on the wire from a real server: the 1.21.5 list minus resource_selector (new in 1.21.5), plus test_argument + test_class which register only in the IDE and never reach the wire. The Rust ARGUMENT_TYPES was the 55-entry 1.21.5 list, so every parser id after resource_key was off by one against a 1.21.4 server (template_mirror decoded as resource_selector, etc.); it now has the 54-entry 1.21.4 list with uuid at 53, matching adapter/v26_2_ids.rs (54 pinned) and COMMAND_ARGUMENT_TYPE_DOWN (53 -> 56). The resource_selector decode arms stay as dead code (batch 93 pattern); test_argument/test_class are NOT added to the table. Pinned by every_argument_type_decodes and the layout_26_2 uuid test, which now takes the Some arm (down(53) = 56)."
     }
   }
 }
