@@ -2252,7 +2252,7 @@ impl Game<'_> {
         for text in horizon_client::item_tooltip::tropical_fish_lines(stack, &display) {
             lines.push((text, gray));
         }
-        // InstrumentComponent.addToTooltip.
+        // InstrumentItem.appendHoverText.
         if let Some(text) =
             horizon_client::item_tooltip::instrument_line(stack, &display, &translate)
         {

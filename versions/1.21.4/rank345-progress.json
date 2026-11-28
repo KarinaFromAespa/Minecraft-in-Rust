@@ -1,8 +1,8 @@
 {
   "release": "1.21.4",
   "rank": "3-5",
-  "batch": 108,
-  "note": "Batch 108 (2026-11-28, rank 3 G5: report ids 361, 363, 364, 369): one real defect fixed (361, the 1.21.4 post-effect program form), three carry-overs. G5 render internals continues with batch 109.",
+  "batch": 109,
+  "note": "Batch 109 (2026-11-28, rank 3 G5: report ids 377, 381, 388, 396): four carry-overs; the only code change is two 1.21.5 doc citations corrected to InstrumentItem.appendHoverText (377).",
   "items": {
     "437": {
       "module": "crates/horizon-protocol/src/hash_ops.rs",
@@ -668,6 +668,26 @@
       "module": "crates/horizon-client-render/src/clouds.rs",
       "verdict": "closed",
       "evidence": "CARRY-OVER (batch 108, jar-verified 2026-11-28): com/mojang/blaze3d/shaders/Uniform 48m -- the class does not exist in 1.21.5 at all (javap on the 1.21.5 jar returns empty); the whole GL uniform-upload machinery (UT_INT1/UT_FLOAT4 constants, markDirty, IntBuffer/FloatBuffer uploads) was removed by the 1.21.5 render rewrite. The Rust is wgpu-based with its own uniform buffers; clouds.rs's own Uniform struct (line 166) is the cloud mesh uniform, unrelated to the Java class. The report's module mapping to clouds.rs is heuristic (clouds.rs is the CloudRenderer: flat/fancy cell geometry, CLOUD_HEIGHT 192.33)."
+    },
+    "377": {
+      "module": "crates/horizon-client-render/src/settings.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 109, jar-verified 2026-11-28): InstrumentItem 6m. 1.21.5 drops the item's instruments TagKey field and ctor argument (the component now wraps tag-or-holder via InstrumentComponent.unwrap); 1.21.4's getInstrument reads the stack's INSTRUMENT component as a Holder if present, else the first holder of the item's tag. Items.GOAT_HORN is built with InstrumentTags.GOAT_HORNS, whose values are regular (ponder, sing, seek, feel) then screaming (admire, call, yearn, dream) -- ponder_goat_horn first -- so the fallback is exactly the Rust's hardcoded ponder default (items.rs instrument_id; instrument() resolves the component id or an inline instrument from the registry). appendHoverText is REMOVED in 1.21.5 (the tooltip moved to the component); 1.21.4's appendHoverText adds Instrument.description().copy() with GRAY style, which the Rust's instrument_line (description key instrument.<id>) + gray push at the stations.rs call site already does. play only widens Level.playSound(Player, ...) to (Entity, ...) with the same sound/volume (range / 16, RECORDS); use/getUseDuration are unchanged (Mth.floor(useDuration * 20), the Rust's use_ticks). Fixed two stale 1.21.5 doc citations to the 1.21.4 location (InstrumentComponent.addToTooltip -> InstrumentItem.appendHoverText) in item_tooltip.rs and the stations.rs call-site comment. The report's module mapping to settings.rs is heuristic -- settings.rs has no instrument code; the logic lives in horizon-items/src/items.rs, item_tooltip.rs and game/using_item.rs."
+    },
+    "381": {
+      "module": "crates/horizon-client-render/src/font.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 109, jar-verified 2026-11-28): FontTexture 5m + FontSet 4m + three Glyph$1 classes 2m each. All three glyph classes change only SheetGlyphInfo.upload(int, int) -> upload(int, int, GpuTexture) (the new-pipeline texture parameter); the glyph pixels are unchanged. FontTexture.add keeps the same Node-insert algorithm and UV math (0.01 inset / 256.0 divisor); 1.21.5 only passes the GpuTexture to upload instead of calling bind() first, and the ctor gains a Supplier<String> name (debug naming). FontTexture.close() and FontSet.closeTextures() are removed in 1.21.5 (texture lifecycle moved to the GPU-device side). FontSet.stitch is the same except for the new ctor argument. The Rust's font.rs already implements the 1.21.4 UV rule (font.rs:253-259, test-pinned) and uploads glyphs to its own wgpu atlas; there is no Java FontTexture lifecycle to mirror."
+    },
+    "388": {
+      "module": "crates/horizon-client-render/src/packs.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 109, jar-verified 2026-11-28): BlockStateModelLoader 8m + BuiltInPackSource 0m. 1.21.5 removes the item-frame special-casing from the loader: ITEM_FRAME_FAKE_DEFINITION (a fake AIR state definition with a boolean \"map\" property), STATIC_DEFINITIONS (item_frame / glow_item_frame -> the fake definition), the four ModelResourceLocation constants (item_frame#map=true/false, glow_item_frame#map=true/false), definitionLocationToBlockMapper and the UnbakedModel fallback parameter of loadBlockStates/loadBlockStateDefinitionStack; the loaded-models map goes HashMap -> IdentityHashMap. The Rust never implemented that loader: it reads blockstates/*.json directly as pack data (packs.rs BlockStates merge kind) and renders item frames from its own geometry (game/frames.rs), so there is no fake definition to remove and no loader parameter to drop. BuiltInPackSource gains only the TESTS_ID constant in 1.21.5, with no method changes; the Rust's packs.rs handles the vanilla pack (BuiltInPackSource, packs.rs:1216)."
+    },
+    "396": {
+      "module": "crates/horizon-client-render/src/gfx/panorama.rs",
+      "verdict": "closed",
+      "evidence": "CARRY-OVER (batch 109, jar-verified 2026-11-28): CubeMap 4m. 1.21.5 renders through RenderPipelines.PANORAMA with a lazily built cubeMapBuffer (new initializeVertices) instead of the 1.21.4 Tesselator + CoreShaders.POSITION_TEX_COLOR + enableBlend/disableCull; the picture is the same: setPerspective(1.4835298f [85 deg FOV], width/height, 0.05f, 10.0f), rotationX(PI), per-face translate(0.5/256, 0.5/256) + rotateX/rotateY by 0.017453292f per degree, quads at +-1 with white alpha 255. The Rust's panorama.rs:173 cites exactly that (\"CubeMap.render: 85-degree FOV, near/far 0.05/10, rotationX(PI), rotateX, rotateY\") and implements it with its own wgpu panorama pipeline (perspective_rh 85 deg, 0.05, 10.0 * rotation_x(PI) * rotation_x(pitch) * rotation_y(yaw))."
     }
   }
 }

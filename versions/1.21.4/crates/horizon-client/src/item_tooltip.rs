@@ -347,7 +347,7 @@ fn is_beehive(path: &str) -> bool {
     matches!(path, "beehive" | "bee_nest")
 }
 
-/// `InstrumentComponent.addToTooltip`: the instrument's description. A goat
+/// `InstrumentItem.appendHoverText`: the instrument's description. A goat
 /// horn without the component has the item's default, the ponder horn.
 pub fn instrument_line(
     stack: &ItemStack,

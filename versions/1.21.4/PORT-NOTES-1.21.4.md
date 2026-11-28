@@ -7213,3 +7213,43 @@ was removed by the render rewrite; the Rust is wgpu-based, and
 clouds.rs's own Uniform struct is the cloud mesh uniform, unrelated.
 Rank 3 after batch 108: 13 accepted + 129 closed = 142/149; total
 489/548.
+
+Batch 109 (2026-11-28, rank 3 G5: report ids 377, 381, 388, 396):
+four carry-overs; the only code change is two 1.21.5 doc citations
+corrected to InstrumentItem.appendHoverText (377). 377
+(settings.rs): InstrumentItem -- 1.21.5 drops the item's instruments
+TagKey field (the component now wraps tag-or-holder); 1.21.4's
+getInstrument reads the stack's INSTRUMENT component if present,
+else the first holder of the item's tag. Items.GOAT_HORN is built
+with InstrumentTags.GOAT_HORNS, whose values are regular (ponder,
+sing, seek, feel) then screaming (admire, call, yearn, dream) --
+ponder first -- so the fallback is exactly the Rust's hardcoded
+ponder default (items.rs instrument_id; instrument() resolves the
+component id or an inline instrument). appendHoverText is REMOVED in
+1.21.5 (the tooltip moved to the component); 1.21.4's adds the
+instrument description in gray, which the Rust's instrument_line +
+gray push already does. play only widens Level.playSound(Player, ...)
+to (Entity, ...) with the same sound/volume (range / 16, RECORDS);
+use/getUseDuration unchanged (floor(useDuration * 20), the Rust's
+use_ticks). The report's module mapping to settings.rs is heuristic --
+settings.rs has no instrument code; the logic lives in
+horizon-items/src/items.rs, item_tooltip.rs and game/using_item.rs.
+381 (font.rs): FontTexture/FontSet -- the three Glyph$1 classes
+change only upload(int, int) -> upload(int, int, GpuTexture); add
+keeps the same Node-insert algorithm and UV math (0.01 inset / 256.0),
+which the Rust's font.rs already implements test-pinned; close() and
+closeTextures() are removed in 1.21.5 (GPU-side lifecycle). 388
+(packs.rs): BlockStateModelLoader -- 1.21.5 removes the item-frame
+special-casing (ITEM_FRAME_FAKE_DEFINITION, STATIC_DEFINITIONS, the
+four item_frame/glow_item_frame ModelResourceLocations,
+definitionLocationToBlockMapper, the UnbakedModel fallback parameter);
+the Rust never implemented that loader -- it reads blockstates/*.json
+directly as pack data and renders item frames from its own geometry
+(game/frames.rs). BuiltInPackSource gains only the TESTS_ID constant,
+no method changes. 396 (panorama.rs): CubeMap -- 1.21.5 renders
+through RenderPipelines.PANORAMA with a prebuilt cubeMapBuffer
+instead of the Tesselator; the picture is the same (85-degree FOV,
+near/far 0.05/10, rotationX(PI), per-face rotateX/rotateY), which the
+Rust's panorama.rs:173 already cites and implements with its own wgpu
+pipeline. Rank 3 after batch 109: 13 accepted + 133 closed = 146/149;
+total 493/548.
